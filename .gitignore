@@ -1,0 +1,29 @@
+# Ignore Mac system files
+.DS_Store
+
+# Ignore large weights and mock video data
+legacy_v1/yolov8m.pt
+legacy_v1/output/
+legacy_v1/data/
+*.mp4
+*.pt
+mock_data/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env
+
+# Next.js / Node
+node_modules/
+.next/
+out/
+build/
+.npm/
+
+# IDEs
+.vscode/
+.idea/
