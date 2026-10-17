@@ -1,0 +1,15 @@
+# Replace with your actual Google Cloud Project ID
+project_id = "your-gcp-project-id"
+
+# Region for bucket, Firestore, and Vertex AI (e.g. Singapore)
+region = "asia-southeast1"
+
+# Custom bucket name (optional - leave empty to auto-generate)
+# bucket_name = "aisle-interaction-clips-myproject"
+
+# Auto-delete video clips after N days (default: 7) to keep storage free/cheap
+clip_retention_days = 7
+
+# Generate local service account JSON key file for local testing
+generate_key_file = true
+key_output_path   = "../secrets/aisle-key.json"
