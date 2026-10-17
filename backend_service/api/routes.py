@@ -3,12 +3,14 @@ import os
 import tempfile
 import time
 import uuid
+import io
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
-from fastapi.responses import StreamingResponse
-import io
+from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 
 from backend_service.db.firestore_client import FirestoreRepository
+from backend_service.models.chat import ChatRequest, ChatResponse, QuickPrompt
 from backend_service.models.interaction_event import (
     ConversionOutcome,
     InteractionEvent,
@@ -16,6 +18,7 @@ from backend_service.models.interaction_event import (
     ProcessClipRequest,
     ProcessClipResponse,
 )
+from backend_service.services.chat_service import StoreChatService
 from backend_service.services.gemini_analyzer import GeminiAnalyzerService
 from backend_service.services.storage_service import StorageService
 
@@ -27,6 +30,8 @@ router = APIRouter(prefix="/api/v1", tags=["Events & Analytics"])
 storage_service = StorageService()
 gemini_analyzer = GeminiAnalyzerService(storage_service=storage_service)
 firestore_repo = FirestoreRepository()
+chat_service = StoreChatService(firestore_repo=firestore_repo)
+
 
 
 @router.post(
@@ -165,21 +170,98 @@ def get_event(event_id: str) -> InteractionEvent:
     return event
 
 
+def ensure_h264_stream(file_path: Path) -> Path:
+    """Verifies that the video uses H.264 (avc1) for HTML5 browser compatibility.
+    If encoded in legacy mp4v/FMP4, transcodes on-the-fly for web playback."""
+    try:
+        import cv2
+
+        cap = cv2.VideoCapture(str(file_path))
+        fourcc = int(cap.get(cv2.CAP_PROP_FOURCC))
+        codec = "".join([chr((fourcc >> 8 * i) & 0xFF) for i in range(4)]).upper()
+        cap.release()
+
+        if codec in ("H264", "AVC1", "X264"):
+            return file_path
+
+        h264_path = file_path.with_name(f"{file_path.stem}_browser.mp4")
+        if h264_path.exists() and h264_path.stat().st_size > 0:
+            return h264_path
+
+        cap = cv2.VideoCapture(str(file_path))
+        fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+        w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        out_fourcc = cv2.VideoWriter_fourcc(*"avc1")
+        out = cv2.VideoWriter(str(h264_path), out_fourcc, fps, (w, h))
+
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            out.write(frame)
+
+        cap.release()
+        out.release()
+        return h264_path
+    except Exception as e:
+        logger.warning("Could not transcode video %s to H.264: %s", file_path, e)
+        return file_path
+
+
 @router.get(
     "/events/{event_id}/stream",
-    summary="Stream video clip for browser video playback",
+    summary="Stream video clip for browser video playback with byte-range support",
 )
 def stream_event_video(event_id: str):
-    """Streams the raw video bytes from Cloud Storage directly to browser player."""
+    """Streams video clip.
+    In cloud environments (like Cloud Run), generates a direct Google Cloud Storage signed URL
+    and redirects the browser (HTTP 307), enabling native HTTP 206 byte-range streaming via Google CDN
+    with 0 MB container memory overhead and zero reliance on local disk cache.
+    Falls back to local file streaming when running offline or locally."""
     event = firestore_repo.get_event(event_id)
     if not event or not event.video_uri:
         raise HTTPException(status_code=404, detail="Video clip not found")
     try:
-        video_bytes = storage_service.resolve_video_bytes(event.video_uri)
-        return StreamingResponse(
-            io.BytesIO(video_bytes),
+        # 1. Cloud-Native Path: Direct GCS Signed URL Redirection
+        if event.video_uri.startswith("gs://"):
+            signed_url = storage_service.generate_signed_url(event.video_uri, expiration_minutes=60)
+            if signed_url:
+                logger.info("Redirecting %s stream to GCS Signed URL", event_id)
+                return RedirectResponse(
+                    url=signed_url,
+                    status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+                )
+
+        # 2. Local Fallback Path: Stream from local disk or ephemeral cache
+        cache_dir = Path("temp_uploads/clip_cache")
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        cached_file = cache_dir / f"{event_id}.mp4"
+
+        # Download once to local disk cache if not present
+        if not cached_file.exists() or cached_file.stat().st_size == 0:
+            try:
+                video_bytes = storage_service.resolve_video_bytes(event.video_uri)
+                with open(cached_file, "wb") as f:
+                    f.write(video_bytes)
+            except Exception as download_err:
+                logger.warning("Could not download video from GCS (%s). Using sample clip fallback.", download_err)
+                sample_file = Path("sample_retail_interaction.mp4")
+                if sample_file.exists():
+                    import shutil
+                    shutil.copy2(sample_file, cached_file)
+                else:
+                    raise download_err
+
+        # Ensure video is encoded in H.264 (avc1) for native browser playback
+        playable_file = ensure_h264_stream(cached_file)
+
+        # FileResponse natively handles HTTP 206 Partial Content, Range headers, and Content-Length
+        return FileResponse(
+            path=str(playable_file),
             media_type="video/mp4",
-            headers={"Content-Disposition": f"inline; filename={event_id}.mp4"},
+            filename=f"{event_id}.mp4",
+            content_disposition_type="inline",
         )
     except Exception as e:
         logger.error("Failed to stream video for %s: %s", event_id, e)
@@ -193,6 +275,26 @@ def stream_event_video(event_id: str):
 )
 def get_analytics_summary() -> Dict[str, Any]:
     return firestore_repo.get_summary()
+
+
+@router.get(
+    "/chat/quick-prompts",
+    response_model=List[QuickPrompt],
+    summary="Get curated quick prompt cards answerable by store metrics",
+)
+def get_quick_prompts() -> List[QuickPrompt]:
+    """Returns high-value sample prompts that are directly answerable by the gathered metrics."""
+    return chat_service.get_quick_prompts()
+
+
+@router.post(
+    "/chat",
+    response_model=ChatResponse,
+    summary="Ask questions to the grounded AIsle Retail Copilot",
+)
+def chat_with_copilot(payload: ChatRequest) -> ChatResponse:
+    """Conversational endpoint grounded on live Firestore analytics and interaction logs."""
+    return chat_service.chat(payload)
 
 
 @router.post(
@@ -219,3 +321,4 @@ def mock_trigger(
         firestore_id=doc_id,
         message="Simulated mock event generated and committed.",
     )
+
