@@ -1,18 +1,29 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { Archivo } from "next/font/google";
 import "./globals.css";
 
+const archivo = Archivo({
+  subsets: ["latin"],
+  axes: ["wdth"],
+  variable: "--font-archivo",
+});
+
 export const metadata: Metadata = {
-  title: "AIsle | Physical Retail Behavioral Intelligence",
-  description: "Next-generation retail analytics powered by Google Gemini multimodal video vision and Google Cloud.",
+  title: "AIsle",
+  description:
+    "Shelf-level shopper analytics. Overhead clips read by Gemini show what shoppers pick up, put back, and why.",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fafbfb" },
+    { media: "(prefers-color-scheme: dark)", color: "#161a20" },
+  ],
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={archivo.variable}>
       <body>{children}</body>
     </html>
   );
