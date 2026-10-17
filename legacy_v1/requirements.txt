@@ -1,7 +1,0 @@
-torch
-numpy
-pandas
-ultralytics<=8.3.40
-supervision
-pyyaml
-streamlit
