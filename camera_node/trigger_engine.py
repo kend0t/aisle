@@ -222,10 +222,12 @@ class EdgeTriggerEngine:
         clip_name = f"clip_{zone_id}_{timestamp_str}_id{track_id}.mp4"
         clip_path = str(self.out_dir / clip_name)
 
-        first_frame = frames[0]
-        h, w = first_frame.shape[:2]
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        # Use avc1 (H.264) for native HTML5 in-browser video playback
+        fourcc = cv2.VideoWriter_fourcc(*"avc1")
         writer = cv2.VideoWriter(clip_path, fourcc, self.fps, (w, h))
+        if not writer.isOpened():
+            fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+            writer = cv2.VideoWriter(clip_path, fourcc, self.fps, (w, h))
 
         try:
             for buf_frame in frames:
