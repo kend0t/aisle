@@ -27,6 +27,7 @@ You have access to the ground-truth physical telemetry from the store's shelf ca
 
 Instructions for Answers:
 - **Be Authoritative and Direct**: Deliver concise, data-driven executive insights using markdown tables or bullet points where appropriate.
+- **Use the store's terms**: Say "taken rate" (not conversion) and "put-back rate" (not cart abandonment). An item is "put back", not "abandoned".
 - **Ground in Evidence**: Quote concrete numbers (e.g., "54.5% conversion across 11 interactions"), dwell times (e.g., "7.5 seconds average"), and specific `event_id`s (e.g., `evt_019fd036bf`).
 - **Highlight Behavioral Nuances**: Reference specific physical interactions detected by the vision model (e.g. photographing products with smartphones, crouching for bottom-shelf items, holding two items to compare).
 - **Format Requirements**: Return a strict JSON object with:
@@ -42,36 +43,36 @@ Return ONLY valid JSON without extra markdown wraps or preamble.
 CURATED_QUICK_PROMPTS: List[QuickPrompt] = [
     QuickPrompt(
         id="cereal_abandonment",
-        title="Cereal Shelf Abandonment",
-        prompt="Why are shoppers abandoning items at the cereal shelf, and what behaviors did the AI observe?",
+        title="Cereal put-backs",
+        prompt="Why are shoppers putting items back at the cereal bay, and what did they do before putting them back?",
         icon="📉",
         category="Conversion & Loss",
     ),
     QuickPrompt(
         id="zone_comparison",
-        title="Cereal vs Snacks Comparison",
-        prompt="Compare the conversion rate, average dwell time, and shopper volume between Left Bay Cereal and Right Bay Snacks.",
+        title="Cereal bay against snack bay",
+        prompt="Compare the cereal bay and the snack bay: clips, taken rate, put-back rate, and time at shelf.",
         icon="⚖️",
         category="Merchandising",
     ),
     QuickPrompt(
         id="showrooming_behavior",
-        title="Smartphone & Price Checking",
-        prompt="Did any shoppers exhibit smartphone photography, price-checking, or showrooming behaviors at the shelves?",
+        title="Phone use at the shelf",
+        prompt="Which shoppers used a phone at the shelf, and did they take the item?",
         icon="📱",
         category="Shopper Behavior",
     ),
     QuickPrompt(
-        id="edge_efficiency",
-        title="Edge Bandwidth & Latency",
-        prompt="What are our edge compute bandwidth savings and cloud analysis latency metrics across the camera nodes?",
-        icon="⚡",
-        category="System Health",
+        id="putback_behaviors",
+        title="What comes before a put-back",
+        prompt="Which behaviors did shoppers show before putting an item back, and what could change at the shelf?",
+        icon="↩️",
+        category="Conversion & Loss",
     ),
     QuickPrompt(
         id="bottom_shelf_dwell",
-        title="Shelf Height Engagement",
-        prompt="How do shoppers interact with lower vs eye-level shelves, and did crouching or reach behavior impact purchase decisions?",
+        title="Low shelves",
+        prompt="Did shoppers who reached for low shelves take the item more or less often than others?",
         icon="🛒",
         category="Store Layout",
     ),
@@ -138,8 +139,8 @@ class StoreChatService:
         lines = [
             "=== LIVE STORE ANALYTICS SUMMARY ===",
             f"- Total Recorded Shopper Interactions: {summary.get('total_interactions', 0)}",
-            f"- Storewide Conversion Rate: {summary.get('conversion_rate', 0.0)}%",
-            f"- Cart Abandonment Rate: {summary.get('abandonment_rate', 0.0)}%",
+            f"- Taken Rate (clips ending with the item taken / all clips): {summary.get('conversion_rate', 0.0)}%",
+            f"- Put-back Rate (items put back / items picked up): {summary.get('abandonment_rate', 0.0)}%",
             f"- Storewide Average Dwell Time: {summary.get('average_dwell_time_seconds', 0.0)} seconds",
             f"- Conversion Breakdown: Taken={summary.get('breakdown_by_outcome', {}).get('taken', 0)}, "
             f"Returned={summary.get('breakdown_by_outcome', {}).get('returned', 0)}, "
@@ -155,20 +156,17 @@ class StoreChatService:
                 lines.append(
                     f"- Zone '{z.get('zone_id')}' ({z.get('display_name')}): "
                     f"{z.get('interactions')} interactions | "
-                    f"Conversion: {z.get('conversion_rate')}% | "
+                    f"Taken rate: {z.get('conversion_rate')}% | "
                     f"Avg Dwell: {z.get('average_dwell')}s | "
                     f"Taken: {z.get('taken_count')}, Returned: {z.get('returned_count')} | "
                     f"Sample Products: {', '.join(z.get('sample_products', []))}"
                 )
 
-        # Telemetry
+        # Telemetry: only the measured Gemini latency. Edge FPS and bandwidth figures are not measured yet.
         telemetry = summary.get("telemetry", {})
         if telemetry:
-            lines.append("\n=== EDGE & CLOUD TELEMETRY ===")
-            lines.append(f"- Edge Bandwidth Saved: {telemetry.get('bandwidth_saved_pct', 0.0)}%")
+            lines.append("\n=== CLOUD TELEMETRY ===")
             lines.append(f"- Mean Gemini Latency: {telemetry.get('mean_gemini_latency_ms', 0)} ms")
-            lines.append(f"- Mean Total Ingestion Latency: {telemetry.get('mean_total_latency_ms', 0)} ms")
-            lines.append(f"- Edge Camera FPS: {telemetry.get('edge_fps', 30.0)} FPS")
 
         # Events
         if events:

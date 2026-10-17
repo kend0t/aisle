@@ -15,9 +15,9 @@ from backend_service.services.storage_service import StorageService
 logger = logging.getLogger(__name__)
 
 BEHAVIOR_TAG_GUIDE = """- behavior_tags (include only behaviors clearly visible in the clip; use an empty list if none apply):
-  - 'phone_check': Used a phone while at the shelf (photographing a product, checking a price).
+  - 'phone_check': A phone is clearly visible in hand while at the shelf (photographing a product, checking a price).
   - 'compared_alternatives': Held or looked back and forth between two or more products.
-  - 'low_shelf_reach': Bent down or crouched to reach a lower shelf.
+  - 'low_shelf_reach': Visibly crouched or bent at the waist to reach the bottom shelf. Reaching forward with an arm does not count.
   - 'label_inspection': Turned or held a product close to read its packaging.
   - 'carried_basket': Carried a basket or pushed a cart.
   - 'hesitated': Paused with a product in hand before deciding.
