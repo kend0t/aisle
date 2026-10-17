@@ -45,5 +45,6 @@ terraform/README.md
 
 # Setup Guides (scratch/internal)
 docs/setup/
+DEVELOPER_SETUP.md
 
 
