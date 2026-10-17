@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Optional
-from pydantic import BaseModel, Field
+from typing import List, Optional
+from pydantic import BaseModel, Field, field_validator
 
 
 class InteractionType(str, Enum):
@@ -22,6 +22,26 @@ class EstimatedDemographic(str, Enum):
     ADULT = "adult"
     SENIOR = "senior"
     UNKNOWN = "unknown"
+
+
+class BehaviorTag(str, Enum):
+    PHONE_CHECK = "phone_check"
+    COMPARED_ALTERNATIVES = "compared_alternatives"
+    LOW_SHELF_REACH = "low_shelf_reach"
+    LABEL_INSPECTION = "label_inspection"
+    CARRIED_BASKET = "carried_basket"
+    HESITATED = "hesitated"
+
+
+BEHAVIOR_TAG_VALUES = {tag.value for tag in BehaviorTag}
+
+
+def filter_behavior_tags(tags: object) -> List[str]:
+    """Keeps known behavior tags in first-seen order and drops anything else."""
+    if not isinstance(tags, list):
+        return []
+    cleaned = [str(t).strip().lower() for t in tags]
+    return list(dict.fromkeys(t for t in cleaned if t in BEHAVIOR_TAG_VALUES))
 
 
 class InteractionEvent(BaseModel):
@@ -54,6 +74,10 @@ class InteractionEvent(BaseModel):
     behavioral_summary: str = Field(
         ..., description="Concise qualitative narrative describing customer actions"
     )
+    behavior_tags: List[str] = Field(
+        default_factory=list,
+        description="Observed shopper behaviors from the fixed BehaviorTag vocabulary",
+    )
 
     # Optional cloud provenance fields
     video_uri: Optional[str] = Field(
@@ -72,6 +96,11 @@ class InteractionEvent(BaseModel):
         default_factory=lambda: datetime.now(timezone.utc).isoformat(),
         description="Timestamp when record was committed to Firestore",
     )
+
+    @field_validator("behavior_tags", mode="before")
+    @classmethod
+    def _keep_known_tags(cls, value: object) -> List[str]:
+        return filter_behavior_tags(value)
 
 
 class ProcessClipRequest(BaseModel):

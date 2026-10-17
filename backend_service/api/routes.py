@@ -7,10 +7,11 @@ import io
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
-from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import FileResponse, RedirectResponse, Response, StreamingResponse
 
 from backend_service.db.firestore_client import FirestoreRepository
 from backend_service.models.chat import ChatRequest, ChatResponse, QuickPrompt
+from backend_service.models.insights import InsightsResponse
 from backend_service.models.interaction_event import (
     ConversionOutcome,
     InteractionEvent,
@@ -20,6 +21,7 @@ from backend_service.models.interaction_event import (
 )
 from backend_service.services.chat_service import StoreChatService
 from backend_service.services.gemini_analyzer import GeminiAnalyzerService
+from backend_service.services.insights_service import InsightsService
 from backend_service.services.storage_service import StorageService
 
 logger = logging.getLogger(__name__)
@@ -31,6 +33,9 @@ storage_service = StorageService()
 gemini_analyzer = GeminiAnalyzerService(storage_service=storage_service)
 firestore_repo = FirestoreRepository()
 chat_service = StoreChatService(firestore_repo=firestore_repo)
+insights_service = InsightsService(firestore_repo=firestore_repo, chat_service=chat_service)
+
+CLIP_CACHE_DIR = Path("temp_uploads/clip_cache")
 
 
 
@@ -209,6 +214,27 @@ def ensure_h264_stream(file_path: Path) -> Path:
         return file_path
 
 
+def cache_clip_locally(event: InteractionEvent) -> Path:
+    """Downloads the event's clip to the local cache once and returns its path."""
+    CLIP_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    cached_file = CLIP_CACHE_DIR / f"{event.event_id}.mp4"
+
+    if not cached_file.exists() or cached_file.stat().st_size == 0:
+        try:
+            video_bytes = storage_service.resolve_video_bytes(event.video_uri)
+            with open(cached_file, "wb") as f:
+                f.write(video_bytes)
+        except Exception as download_err:
+            logger.warning("Could not download video from GCS (%s). Using sample clip fallback.", download_err)
+            sample_file = Path("sample_retail_interaction.mp4")
+            if sample_file.exists():
+                import shutil
+                shutil.copy2(sample_file, cached_file)
+            else:
+                raise download_err
+    return cached_file
+
+
 @router.get(
     "/events/{event_id}/stream",
     summary="Stream video clip for browser video playback with byte-range support",
@@ -234,24 +260,7 @@ def stream_event_video(event_id: str):
                 )
 
         # 2. Local Fallback Path: Stream from local disk or ephemeral cache
-        cache_dir = Path("temp_uploads/clip_cache")
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        cached_file = cache_dir / f"{event_id}.mp4"
-
-        # Download once to local disk cache if not present
-        if not cached_file.exists() or cached_file.stat().st_size == 0:
-            try:
-                video_bytes = storage_service.resolve_video_bytes(event.video_uri)
-                with open(cached_file, "wb") as f:
-                    f.write(video_bytes)
-            except Exception as download_err:
-                logger.warning("Could not download video from GCS (%s). Using sample clip fallback.", download_err)
-                sample_file = Path("sample_retail_interaction.mp4")
-                if sample_file.exists():
-                    import shutil
-                    shutil.copy2(sample_file, cached_file)
-                else:
-                    raise download_err
+        cached_file = cache_clip_locally(event)
 
         # Ensure video is encoded in H.264 (avc1) for native browser playback
         playable_file = ensure_h264_stream(cached_file)
@@ -266,6 +275,43 @@ def stream_event_video(event_id: str):
     except Exception as e:
         logger.error("Failed to stream video for %s: %s", event_id, e)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get(
+    "/events/{event_id}/thumbnail",
+    summary="JPEG still frame from the middle of the event's clip",
+)
+def get_event_thumbnail(event_id: str) -> Response:
+    event = firestore_repo.get_event(event_id)
+    if not event or not event.video_uri:
+        raise HTTPException(status_code=404, detail="Video clip not found")
+
+    thumb_file = CLIP_CACHE_DIR / f"{event_id}_thumb.jpg"
+    if not thumb_file.exists() or thumb_file.stat().st_size == 0:
+        try:
+            import cv2
+
+            clip_file = cache_clip_locally(event)
+            cap = cv2.VideoCapture(str(clip_file))
+            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            cap.set(cv2.CAP_PROP_POS_FRAMES, max(0, frame_count // 2))
+            ok, frame = cap.read()
+            cap.release()
+            if not ok:
+                raise RuntimeError("could not read a frame from the clip")
+            height, width = frame.shape[:2]
+            target_width = 480
+            frame = cv2.resize(frame, (target_width, int(height * target_width / width)))
+            cv2.imwrite(str(thumb_file), frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+        except Exception as e:
+            logger.error("Failed to build thumbnail for %s: %s", event_id, e)
+            raise HTTPException(status_code=500, detail=f"Could not build thumbnail: {e}")
+
+    return FileResponse(
+        path=str(thumb_file),
+        media_type="image/jpeg",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
 
 
 @router.get(
@@ -294,7 +340,22 @@ def get_quick_prompts() -> List[QuickPrompt]:
 )
 def chat_with_copilot(payload: ChatRequest) -> ChatResponse:
     """Conversational endpoint grounded on live Firestore analytics and interaction logs."""
-    return chat_service.chat(payload)
+    response = chat_service.chat(payload)
+    # Only keep citations that resolve to stored events, so every replay link works
+    response.referenced_events = [
+        event_id for event_id in response.referenced_events if firestore_repo.get_event(event_id)
+    ]
+    return response
+
+
+@router.get(
+    "/insights",
+    response_model=InsightsResponse,
+    summary="Ranked findings for a store manager, each backed by clips",
+)
+def get_insights() -> InsightsResponse:
+    """Gemini-written findings, cached in memory until the stored events change."""
+    return insights_service.get_insights()
 
 
 @router.post(

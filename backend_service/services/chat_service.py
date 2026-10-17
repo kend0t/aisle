@@ -130,7 +130,7 @@ class StoreChatService:
         """Returns pre-configured, high-value prompt cards answerable by store data."""
         return CURATED_QUICK_PROMPTS
 
-    def _build_grounding_context(self) -> str:
+    def build_grounding_context(self) -> str:
         """Fetches live store KPIs and individual interaction summaries into a compact markdown context."""
         summary = self.firestore.get_summary()
         events = self.firestore.list_events(limit=30)
@@ -178,6 +178,7 @@ class StoreChatService:
                     f"- Event [{evt.event_id}]: Zone={evt.zone_id} | Outcome={evt.conversion_outcome.upper()} | "
                     f"Type={evt.interaction_type} | Dwell={evt.zone_dwell_time_seconds}s | "
                     f"Product='{evt.product_category_engaged}' | "
+                    f"Behaviors={', '.join(evt.behavior_tags) or 'none tagged'} | "
                     f"Summary: \"{evt.behavioral_summary}\""
                 )
 
@@ -185,7 +186,7 @@ class StoreChatService:
 
     def chat(self, request: ChatRequest) -> ChatResponse:
         """Processes user question through Gemini 2.5 Flash grounded on real store events."""
-        grounding_data = self._build_grounding_context()
+        grounding_data = self.build_grounding_context()
 
         # Build conversation history
         history_context = ""
@@ -214,12 +215,16 @@ class StoreChatService:
             logger.error("Error during store chat generation: %s", e)
             return self._generate_fallback_response(request.message, str(e))
 
-    def _call_gemini(self, prompt: str) -> str:
-        """Calls Gemini with strict system instruction."""
+    @property
+    def gemini_available(self) -> bool:
+        return self._mode in ("genai_vertex", "genai_apikey") and self._genai_client is not None
+
+    def generate_json(self, system_instruction: str, prompt: str) -> str:
+        """Runs a text-only Gemini call that must return JSON. Callers check gemini_available first."""
         from google.genai import types
 
         config = types.GenerateContentConfig(
-            system_instruction=COPILOT_SYSTEM_PROMPT,
+            system_instruction=system_instruction,
             temperature=0.3,
             response_mime_type="application/json",
         )
@@ -229,6 +234,10 @@ class StoreChatService:
             config=config,
         )
         return response.text
+
+    def _call_gemini(self, prompt: str) -> str:
+        """Calls Gemini with strict system instruction."""
+        return self.generate_json(COPILOT_SYSTEM_PROMPT, prompt)
 
     def _parse_chat_response(self, raw_text: str) -> ChatResponse:
         """Parses structured JSON response from Gemini."""

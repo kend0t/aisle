@@ -14,7 +14,17 @@ from backend_service.services.storage_service import StorageService
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """You are an expert AI retail behavioral analyst for in-store physical retail analytics.
+BEHAVIOR_TAG_GUIDE = """- behavior_tags (include only behaviors clearly visible in the clip; use an empty list if none apply):
+  - 'phone_check': Used a phone while at the shelf (photographing a product, checking a price).
+  - 'compared_alternatives': Held or looked back and forth between two or more products.
+  - 'low_shelf_reach': Bent down or crouched to reach a lower shelf.
+  - 'label_inspection': Turned or held a product close to read its packaging.
+  - 'carried_basket': Carried a basket or pushed a cart.
+  - 'hesitated': Paused with a product in hand before deciding.
+"""
+
+SYSTEM_PROMPT = (
+    """You are an expert AI retail behavioral analyst for in-store physical retail analytics.
 You analyze short overhead or shelf-facing video clips of customer interactions with retail store shelves and displays.
 
 Analyze the video and output a strict JSON object with EXACTLY the following fields:
@@ -28,7 +38,8 @@ Analyze the video and output a strict JSON object with EXACTLY the following fie
   "product_category_engaged": "<string: descriptive shelf section or product description>",
   "shopper_group_size": <integer: 1, 2, or more>,
   "estimated_demographic": "<one of: 'young_adult', 'adult', 'senior', 'unknown'>",
-  "behavioral_summary": "<string: 1-2 sentence narrative detailing customer movement, hesitation, physical touches, and final action>"
+  "behavioral_summary": "<string: 1-2 sentence narrative detailing customer movement, hesitation, physical touches, and final action>",
+  "behavior_tags": ["<zero or more of: 'phone_check', 'compared_alternatives', 'low_shelf_reach', 'label_inspection', 'carried_basket', 'hesitated'>"]
 }
 
 Definitions:
@@ -41,9 +52,12 @@ Definitions:
   - 'taken': Placed in cart, basket, or held to purchase.
   - 'returned': Placed back onto the shelf (cart abandonment).
   - 'none': No product was physically removed.
-
+"""
+    + BEHAVIOR_TAG_GUIDE
+    + """
 Return ONLY the valid JSON object without markdown code blocks or additional commentary.
 """
+)
 
 
 class GeminiAnalyzerService:
@@ -234,5 +248,6 @@ class GeminiAnalyzerService:
                     f"{dwell_time}s, picked up an organic cereal box to examine the nutritional panel, "
                     "hesitated, and returned it back to the shelf before exiting."
                 ),
+                "behavior_tags": ["label_inspection", "hesitated"],
             }
         )
