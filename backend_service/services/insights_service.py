@@ -17,15 +17,18 @@ Rank by how much a change at the shelf could raise the share of items taken.
 Rules:
 - Each finding must cite the event IDs (evt_...) of the clips that support it. Use only IDs present in the data.
 - State numbers exactly as given in the data. Do not invent figures.
-- The detail says what was observed and one concrete shelf-level action to try. Plain language, no hype.
+- title: 8 words or fewer, states what shoppers did.
+- action: one imperative sentence, 15 words or fewer, naming a change at the shelf.
+- detail: one sentence of evidence with the numbers. Plain language, no hype.
 - severity: 'act' when a fix is clear and the evidence covers several clips, 'watch' when the pattern is weaker, 'info' for context.
 
 Return ONLY a JSON object:
 {
   "findings": [
     {
-      "title": "<under 70 characters>",
-      "detail": "<1-3 sentences>",
+      "title": "<8 words or fewer>",
+      "action": "<15 words or fewer>",
+      "detail": "<1 sentence>",
       "zone_id": "<zone id or null>",
       "severity": "<act | watch | info>",
       "evidence_event_ids": ["evt_..."]
@@ -110,10 +113,8 @@ class InsightsService:
             findings.append(
                 Finding(
                     title=f"{name.capitalize()}: {round(rate * 100)}% of picked-up items put back",
-                    detail=(
-                        f"{len(returned)} shoppers picked up an item here and put it back. "
-                        "Watch these clips and check price labels and facings on this bay."
-                    ),
+                    action="Check price labels and facings on this bay.",
+                    detail=f"{len(returned)} shoppers picked up an item here and put it back.",
                     zone_id=zone_id,
                     severity=FindingSeverity.ACT if len(returned) >= 3 else FindingSeverity.WATCH,
                     evidence_event_ids=[e.event_id for e in returned],
@@ -129,10 +130,8 @@ class InsightsService:
             findings.append(
                 Finding(
                     title=f"{len(phone)} shoppers checked a phone at the shelf",
-                    detail=(
-                        f"{put_back} of them left without the item. "
-                        "They may be comparing prices; check that shelf prices are visible and current."
-                    ),
+                    action="Check that shelf prices are visible and current.",
+                    detail=f"{put_back} of them left without the item.",
                     severity=FindingSeverity.WATCH,
                     evidence_event_ids=[e.event_id for e in phone],
                 )
@@ -147,10 +146,8 @@ class InsightsService:
             findings.append(
                 Finding(
                     title=f"{len(low)} shoppers reached for lower shelves",
-                    detail=(
-                        f"{taken} of {len(low)} took an item. "
-                        "Lower shelves are being shopped; consider what sits there."
-                    ),
+                    action="Review which products sit on the lower shelves.",
+                    detail=f"{taken} of {len(low)} took an item.",
                     severity=FindingSeverity.INFO,
                     evidence_event_ids=[e.event_id for e in low],
                 )

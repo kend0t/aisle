@@ -105,6 +105,7 @@ def test_insights_endpoint_offline():
     known_ids = {e["event_id"] for e in client.get("/api/v1/events?limit=500").json()}
     for finding in data["findings"]:
         assert finding["title"]
+        assert finding["action"]
         assert finding["severity"] in ("act", "watch", "info")
         assert set(finding["evidence_event_ids"]) <= known_ids
 
