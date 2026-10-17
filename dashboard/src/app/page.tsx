@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 
 interface Telemetry {
   mean_gemini_latency_ms: number;
@@ -48,6 +48,60 @@ interface InteractionEvent {
   total_latency_ms?: number;
 }
 
+interface QuickPrompt {
+  id: string;
+  title: string;
+  prompt: string;
+  icon: string;
+  category: string;
+}
+
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+  timestamp?: string;
+  referenced_events?: string[];
+  suggested_followups?: string[];
+}
+
+const DEFAULT_QUICK_PROMPTS: QuickPrompt[] = [
+  {
+    id: "cereal_abandonment",
+    title: "Cereal Shelf Abandonment",
+    prompt: "Why are shoppers abandoning items at the cereal shelf, and what behaviors did the AI observe?",
+    icon: "📉",
+    category: "Conversion & Loss",
+  },
+  {
+    id: "zone_comparison",
+    title: "Cereal vs Snacks Comparison",
+    prompt: "Compare the conversion rate, average dwell time, and shopper volume between Left Bay Cereal and Right Bay Snacks.",
+    icon: "⚖️",
+    category: "Merchandising",
+  },
+  {
+    id: "showrooming_behavior",
+    title: "Smartphone & Price Checking",
+    prompt: "Did any shoppers exhibit smartphone photography, price-checking, or showrooming behaviors at the shelves?",
+    icon: "📱",
+    category: "Shopper Behavior",
+  },
+  {
+    id: "edge_efficiency",
+    title: "Edge Bandwidth & Latency",
+    prompt: "What are our edge compute bandwidth savings and cloud analysis latency metrics across the camera nodes?",
+    icon: "⚡",
+    category: "System Health",
+  },
+  {
+    id: "bottom_shelf_dwell",
+    title: "Shelf Height Engagement",
+    prompt: "How do shoppers interact with lower vs eye-level shelves, and did crouching or reach behavior impact purchase decisions?",
+    icon: "🛒",
+    category: "Store Layout",
+  },
+];
+
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1";
 
@@ -60,11 +114,20 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [autoRefresh, setAutoRefresh] = useState<boolean>(true);
 
+  // Copilot Chatbot State
+  const [copilotOpen, setCopilotOpen] = useState<boolean>(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [quickPrompts, setQuickPrompts] = useState<QuickPrompt[]>(DEFAULT_QUICK_PROMPTS);
+  const [chatInput, setChatInput] = useState<string>("");
+  const [chatLoading, setChatLoading] = useState<boolean>(false);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+
   const fetchData = async () => {
     try {
-      const [sumRes, evtsRes] = await Promise.all([
+      const [sumRes, evtsRes, promptsRes] = await Promise.all([
         fetch(`${API_BASE}/analytics/summary`),
         fetch(`${API_BASE}/events?limit=50`),
+        fetch(`${API_BASE}/chat/quick-prompts`).catch(() => null),
       ]);
 
       if (sumRes.ok) {
@@ -75,6 +138,13 @@ export default function DashboardPage() {
       if (evtsRes.ok) {
         const evtsData = await evtsRes.json();
         setEvents(evtsData);
+      }
+
+      if (promptsRes && promptsRes.ok) {
+        const promptData = await promptsRes.json();
+        if (Array.isArray(promptData) && promptData.length > 0) {
+          setQuickPrompts(promptData);
+        }
       }
     } catch (err) {
       console.error("Failed to fetch dashboard metrics:", err);
@@ -90,6 +160,12 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, [autoRefresh]);
 
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [chatMessages, chatLoading]);
+
   const filteredEvents = useMemo(() => {
     return events.filter((e) => {
       const outcomeMatch =
@@ -104,6 +180,143 @@ export default function DashboardPage() {
   const zonesList = useMemo(() => {
     return Array.from(new Set(events.map((e) => e.zone_id)));
   }, [events]);
+
+  // Handle Copilot Question Submission
+  const handleSendChat = async (textToSubmit?: string) => {
+    const question = (textToSubmit || chatInput).trim();
+    if (!question || chatLoading) return;
+
+    const userMsg: ChatMessage = {
+      role: "user",
+      content: question,
+      timestamp: new Date().toISOString(),
+    };
+
+    setChatMessages((prev) => [...prev, userMsg]);
+    setChatInput("");
+    setChatLoading(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: question,
+          history: chatMessages.slice(-6).map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const assistantMsg: ChatMessage = {
+          role: "assistant",
+          content: data.response,
+          referenced_events: data.referenced_events || [],
+          suggested_followups: data.suggested_followups || [],
+          timestamp: data.timestamp,
+        };
+        setChatMessages((prev) => [...prev, assistantMsg]);
+      } else {
+        throw new Error(`Server returned ${res.status}`);
+      }
+    } catch (err: any) {
+      console.error("Chat error:", err);
+      const fallbackMsg: ChatMessage = {
+        role: "assistant",
+        content: `Sorry, I encountered an issue retrieving the analysis: ${err.message || "Network error"}. Please ensure the backend is running.`,
+      };
+      setChatMessages((prev) => [...prev, fallbackMsg]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  // Replay linking from AI Copilot response to video modal
+  const handleReplayEvent = async (eventId: string) => {
+    const found = events.find((e) => e.event_id === eventId);
+    if (found) {
+      setSelectedEvent(found);
+    } else {
+      try {
+        const res = await fetch(`${API_BASE}/events/${eventId}`);
+        if (res.ok) {
+          const evt = await res.json();
+          setSelectedEvent(evt);
+        }
+      } catch (err) {
+        console.error("Could not fetch referenced event:", err);
+      }
+    }
+  };
+
+  // Simple, safe Markdown renderer for chat responses
+  const renderFormattedContent = (content: string) => {
+    const lines = content.split("\n");
+    const elements: React.ReactNode[] = [];
+    let inList = false;
+    let listItems: React.ReactNode[] = [];
+
+    const flushList = () => {
+      if (inList && listItems.length > 0) {
+        elements.push(<ul key={`ul-${elements.length}`}>{listItems}</ul>);
+        listItems = [];
+        inList = false;
+      }
+    };
+
+    const formatInline = (text: string) => {
+      const parts = text.split(/(\*\*.*?\*\*|`.*?`)/g);
+      return parts.map((part, i) => {
+        if (part.startsWith("**") && part.endsWith("**")) {
+          return <strong key={i}>{part.slice(2, -2)}</strong>;
+        }
+        if (part.startsWith("`") && part.endsWith("`")) {
+          return (
+            <code
+              key={i}
+              style={{
+                background: "rgba(255,255,255,0.08)",
+                padding: "2px 6px",
+                borderRadius: "4px",
+                fontFamily: "monospace",
+                color: "#38bdf8",
+              }}
+            >
+              {part.slice(1, -1)}
+            </code>
+          );
+        }
+        return part;
+      });
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) {
+        flushList();
+        continue;
+      }
+
+      if (line.startsWith("### ")) {
+        flushList();
+        elements.push(<h3 key={`h3-${i}`}>{formatInline(line.slice(4))}</h3>);
+      } else if (line.startsWith("#### ")) {
+        flushList();
+        elements.push(<h4 key={`h4-${i}`}>{formatInline(line.slice(5))}</h4>);
+      } else if (line.startsWith("- ") || line.startsWith("* ")) {
+        inList = true;
+        listItems.push(<li key={`li-${i}`}>{formatInline(line.slice(2))}</li>);
+      } else {
+        flushList();
+        elements.push(<p key={`p-${i}`}>{formatInline(line)}</p>);
+      }
+    }
+    flushList();
+    return elements;
+  };
 
   return (
     <main className="dashboard-container">
@@ -139,6 +352,15 @@ export default function DashboardPage() {
           )}
 
           <button
+            className="header-copilot-btn"
+            id="header-copilot-btn"
+            onClick={() => setCopilotOpen(true)}
+            title="Open Conversational Store Copilot"
+          >
+            ✨ Ask AIsle Copilot
+          </button>
+
+          <button
             className="refresh-btn"
             id="refresh-btn"
             onClick={fetchData}
@@ -159,224 +381,432 @@ export default function DashboardPage() {
           <div className="kpi-value">
             {summary ? summary.total_interactions : "--"}
           </div>
-          <div className="kpi-subtext">Monitored dwell interactions captured at shelf</div>
+          <div className="kpi-footer">
+            <span className="trend-badge positive">Live Tracking</span>
+            <span className="footer-subtext">across shelf cameras</span>
+          </div>
         </div>
 
         <div className="kpi-card" id="kpi-conversion" style={{ "--card-accent": "var(--accent-emerald)" } as React.CSSProperties}>
           <div className="kpi-header">
-            <span className="kpi-title">Shelf Conversion Rate</span>
+            <span className="kpi-title">Shelf Conversion</span>
             <span className="kpi-icon">🎯</span>
           </div>
           <div className="kpi-value">
-            {summary ? summary.conversion_rate : "--"}
-            <span className="kpi-unit">%</span>
+            {summary ? `${summary.conversion_rate}%` : "--%"}
           </div>
-          <div className="kpi-subtext">
-            {summary ? `${summary.breakdown_by_outcome?.taken || 0} product purchases / basket additions` : ""}
+          <div className="kpi-footer">
+            <span className="trend-badge positive">
+              {summary ? summary.breakdown_by_outcome.taken || 0 : 0} purchases
+            </span>
+            <span className="footer-subtext">placed in cart</span>
           </div>
         </div>
 
-        <div className="kpi-card" id="kpi-abandonment" style={{ "--card-accent": "var(--accent-amber)" } as React.CSSProperties}>
+        <div className="kpi-card" id="kpi-abandonment" style={{ "--card-accent": "var(--accent-rose)" } as React.CSSProperties}>
           <div className="kpi-header">
-            <span className="kpi-title">Cart Abandonment Rate</span>
-            <span className="kpi-icon">↩️</span>
+            <span className="kpi-title">Cart Abandonment</span>
+            <span className="kpi-icon">⚠️</span>
           </div>
           <div className="kpi-value">
-            {summary ? summary.abandonment_rate : "--"}
-            <span className="kpi-unit">%</span>
+            {summary ? `${summary.abandonment_rate}%` : "--%"}
           </div>
-          <div className="kpi-subtext">
-            {summary ? `${summary.breakdown_by_outcome?.returned || 0} items examined & returned to shelf` : ""}
+          <div className="kpi-footer">
+            <span className="trend-badge negative">
+              {summary ? summary.breakdown_by_outcome.returned || 0 : 0} returned
+            </span>
+            <span className="footer-subtext">items put back</span>
           </div>
         </div>
 
         <div className="kpi-card" id="kpi-dwell" style={{ "--card-accent": "var(--accent-indigo)" } as React.CSSProperties}>
           <div className="kpi-header">
-            <span className="kpi-title">Mean Shelf Dwell</span>
+            <span className="kpi-title">Average Dwell</span>
             <span className="kpi-icon">⏱️</span>
           </div>
           <div className="kpi-value">
-            {summary ? summary.average_dwell_time_seconds : "--"}
-            <span className="kpi-unit">s</span>
+            {summary ? `${summary.average_dwell_time_seconds}s` : "--s"}
           </div>
-          <div className="kpi-subtext">Average customer visual & physical evaluation duration</div>
+          <div className="kpi-footer">
+            <span className="trend-badge neutral">Active inspection</span>
+            <span className="footer-subtext">per customer visit</span>
+          </div>
         </div>
       </section>
 
-      {/* Zone Intelligence & Comparison Matrix */}
-      <section style={{ marginBottom: "36px" }}>
-        <div className="section-header">
-          <h2 className="section-title">
-            <span>📍</span> Zone Performance Comparison
-          </h2>
-          <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>
-            Comparing shopper conversion & dwell across monitored bays
-          </span>
-        </div>
-
-        <div className="zones-grid" id="zones-grid">
-          {summary?.zones && summary.zones.length > 0 ? (
-            summary.zones.map((zone) => (
-              <div className="zone-card" key={zone.zone_id} id={`zone-card-${zone.zone_id}`}>
-                <div className="zone-header">
-                  <div className="zone-name">{zone.display_name}</div>
-                  <span className="zone-badge">
-                    {zone.interactions} visits
-                  </span>
-                </div>
-
-                <div className="zone-stats-row">
-                  <div className="zone-stat-box">
-                    <div className="zone-stat-value" style={{ color: "var(--accent-emerald)" }}>
-                      {zone.conversion_rate}%
-                    </div>
-                    <div className="zone-stat-label">Conversion</div>
-                  </div>
-                  <div className="zone-stat-box">
-                    <div className="zone-stat-value">
-                      {zone.average_dwell}s
-                    </div>
-                    <div className="zone-stat-label">Avg Dwell</div>
-                  </div>
-                  <div className="zone-stat-box">
-                    <div className="zone-stat-value" style={{ color: "var(--accent-amber)" }}>
-                      {zone.returned_count}
-                    </div>
-                    <div className="zone-stat-label">Returns</div>
-                  </div>
-                </div>
-
-                <div className="zone-progress-bar" title={`Taken: ${zone.taken_count} | Returns: ${zone.returned_count}`}>
-                  <div
-                    className="progress-taken"
-                    style={{ width: `${zone.conversion_rate}%` }}
-                  />
-                  <div
-                    className="progress-returned"
-                    style={{
-                      width: `${(zone.returned_count / Math.max(1, zone.interactions)) * 100}%`,
-                    }}
-                  />
-                  <div className="progress-none" style={{ flex: 1 }} />
-                </div>
-
-                {zone.sample_products && zone.sample_products.length > 0 && (
-                  <div className="zone-products">
-                    <strong>Top Products:</strong> {zone.sample_products.join(", ")}
-                  </div>
-                )}
-              </div>
-            ))
-          ) : (
-            <div className="zone-card" style={{ gridColumn: "1 / -1", textAlign: "center", padding: "40px" }}>
-              <p style={{ color: "var(--text-muted)" }}>No zone analytics loaded yet.</p>
+      {/* Zone Performance Comparison Matrix */}
+      {summary?.zones && summary.zones.length > 0 && (
+        <section className="zone-section" id="zone-comparison-section">
+          <div className="section-header">
+            <div>
+              <h2>Retail Shelf Zone Matrix</h2>
+              <p>Granular physical performance, conversion efficiency, and dwell correlation by shelf zone</p>
             </div>
-          )}
-        </div>
-      </section>
+            <div className="zone-legend">
+              <span className="legend-tag high">High Conversion (&gt;50%)</span>
+              <span className="legend-tag med">Average</span>
+            </div>
+          </div>
 
-      {/* Behavioral Event Feed & Audit Log */}
-      <section>
-        <div className="section-header">
-          <h2 className="section-title">
-            <span>⚡</span> Live Multimodal Event Stream
-          </h2>
+          <div className="zone-grid">
+            {summary.zones.map((zone) => {
+              const isHigh = zone.conversion_rate >= 50;
+              return (
+                <div className="zone-card" key={zone.zone_id} id={`zone-card-${zone.zone_id}`}>
+                  <div className="zone-card-top">
+                    <div>
+                      <span className="zone-id-tag">{zone.zone_id}</span>
+                      <h3 className="zone-name">{zone.display_name}</h3>
+                    </div>
+                    <span className={`zone-status-badge ${isHigh ? "high" : "med"}`}>
+                      {zone.conversion_rate}% Conv
+                    </span>
+                  </div>
 
-          <div className="feed-filter-bar" id="feed-filters">
-            {["all", "taken", "returned", "none"].map((opt) => (
-              <button
-                key={opt}
-                className={`filter-btn ${outcomeFilter === opt ? "active" : ""}`}
-                id={`filter-${opt}`}
-                onClick={() => setOutcomeFilter(opt)}
-              >
-                {opt.toUpperCase()} {opt === "all" ? `(${events.length})` : ""}
-              </button>
-            ))}
+                  <div className="zone-metrics-row">
+                    <div className="zone-submetric">
+                      <span className="submetric-val">{zone.interactions}</span>
+                      <span className="submetric-lbl">Interactions</span>
+                    </div>
+                    <div className="zone-submetric">
+                      <span className="submetric-val">{zone.average_dwell}s</span>
+                      <span className="submetric-lbl">Avg Dwell</span>
+                    </div>
+                    <div className="zone-submetric">
+                      <span className="submetric-val" style={{ color: "var(--accent-emerald)" }}>{zone.taken_count}</span>
+                      <span className="submetric-lbl">Taken</span>
+                    </div>
+                    <div className="zone-submetric">
+                      <span className="submetric-val" style={{ color: "var(--accent-rose)" }}>{zone.returned_count}</span>
+                      <span className="submetric-lbl">Returned</span>
+                    </div>
+                  </div>
+
+                  <div className="zone-bar-wrapper">
+                    <div className="zone-bar-label">
+                      <span>Conversion Progress</span>
+                      <strong>{zone.conversion_rate}%</strong>
+                    </div>
+                    <div className="zone-bar-bg">
+                      <div
+                        className="zone-bar-fill"
+                        style={{
+                          width: `${Math.min(100, zone.conversion_rate)}%`,
+                          background: isHigh
+                            ? "linear-gradient(90deg, var(--accent-emerald), var(--accent-cyan))"
+                            : "linear-gradient(90deg, var(--accent-amber), var(--accent-rose))",
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="zone-products-preview">
+                    <strong>Sample Categories:</strong>
+                    <div className="product-tags">
+                      {zone.sample_products.map((p, idx) => (
+                        <span key={idx} className="product-tag">{p}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Multimodal Interaction Feed */}
+      <section className="feed-section" id="interaction-feed-section">
+        <div className="feed-header">
+          <div>
+            <h2>Multimodal Interaction Audit Log</h2>
+            <p>Live edge detections verified by Gemini 2.5 Flash with behavioral reasoning and video replays</p>
+          </div>
+
+          <div className="filter-group">
+            <select
+              value={outcomeFilter}
+              onChange={(e) => setOutcomeFilter(e.target.value)}
+              className="filter-select"
+              id="filter-outcome-select"
+            >
+              <option value="all">All Outcomes</option>
+              <option value="taken">Taken (Converted)</option>
+              <option value="returned">Returned (Abandoned)</option>
+              <option value="none">None (Browsed)</option>
+            </select>
 
             <select
-              style={{
-                background: "var(--bg-card)",
-                border: "1px solid var(--border-subtle)",
-                color: "var(--text-secondary)",
-                padding: "6px 12px",
-                borderRadius: "var(--radius-full)",
-                fontSize: "12px",
-                marginLeft: "8px",
-              }}
               value={zoneFilter}
               onChange={(e) => setZoneFilter(e.target.value)}
-              id="zone-filter-select"
+              className="filter-select"
+              id="filter-zone-select"
             >
               <option value="all">All Zones</option>
               {zonesList.map((z) => (
-                <option key={z} value={z}>
-                  {z.replace("_", " ")}
-                </option>
+                <option key={z} value={z}>{z}</option>
               ))}
             </select>
           </div>
         </div>
 
-        <div className="events-list" id="events-list">
-          {filteredEvents.length > 0 ? (
-            filteredEvents.map((evt) => {
-              const outcomeLower = evt.conversion_outcome.toLowerCase();
-              return (
-                <div className="event-card" key={evt.event_id} id={`event-${evt.event_id}`}>
+        <div className="event-list" id="event-list-container">
+          {filteredEvents.map((evt) => {
+            const isTaken = evt.conversion_outcome.toLowerCase() === "taken";
+            const isReturned = evt.conversion_outcome.toLowerCase() === "returned";
+
+            let outcomeClass = "outcome-none";
+            let outcomeIcon = "👀";
+            if (isTaken) {
+              outcomeClass = "outcome-taken";
+              outcomeIcon = "✅";
+            } else if (isReturned) {
+              outcomeClass = "outcome-returned";
+              outcomeIcon = "↩️";
+            }
+
+            return (
+              <div className="event-card" key={evt.event_id} id={`event-card-${evt.event_id}`}>
+                <div className="event-main">
+                  <div className="event-badges">
+                    <span className={`outcome-pill ${outcomeClass}`}>
+                      {outcomeIcon} {evt.conversion_outcome.toUpperCase()}
+                    </span>
+                    <span className="type-pill">
+                      {evt.interaction_type.toUpperCase()}
+                    </span>
+                    <span className="zone-pill">
+                      📍 {evt.zone_id}
+                    </span>
+                    <span className="dwell-pill">
+                      ⏱️ {evt.zone_dwell_time_seconds}s Dwell
+                    </span>
+                    {evt.gemini_latency_ms && (
+                      <span className="latency-pill" title="Gemini 2.5 Flash Cloud Latency">
+                        ⚡ {(evt.gemini_latency_ms / 1000).toFixed(1)}s
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="behavioral-narrative">
+                    "{evt.behavioral_summary}"
+                  </p>
+
                   <div className="event-meta">
-                    <span className="event-id">{evt.event_id}</span>
-                    <span className="event-time">
-                      {new Date(evt.timestamp).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        second: "2-digit",
-                      })}
-                    </span>
-                    <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                      ⏱️ {evt.zone_dwell_time_seconds}s dwell
-                    </span>
-                  </div>
-
-                  <div>
-                    <span className={`outcome-badge outcome-${outcomeLower}`} id={`badge-${evt.event_id}`}>
-                      {outcomeLower === "taken" && "🛒"}
-                      {outcomeLower === "returned" && "↩️"}
-                      {outcomeLower === "none" && "👀"}
-                      {evt.conversion_outcome}
-                    </span>
-                    <div className="event-tags">
-                      <span className="tag-pill">{evt.zone_id.replace("_", " ")}</span>
-                      <span className="tag-pill">{evt.estimated_demographic}</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <p className="event-narrative">"{evt.behavioral_summary}"</p>
-                    <div style={{ marginTop: "4px", fontSize: "12px", color: "var(--text-muted)" }}>
-                      🏷️ <strong>Product:</strong> {evt.product_category_engaged || "Shelf item"}
-                    </div>
-                  </div>
-
-                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                    <button
-                      className="btn-play-clip"
-                      id={`play-btn-${evt.event_id}`}
-                      onClick={() => setSelectedEvent(evt)}
-                    >
-                      ▶ Replay Clip
-                    </button>
+                    <span><strong>Product:</strong> {evt.product_category_engaged || "General"}</span>
+                    <span><strong>Demographic:</strong> {evt.estimated_demographic}</span>
+                    <span><strong>Shoppers:</strong> {evt.shopper_group_size}</span>
+                    <span className="event-time">{new Date(evt.timestamp).toLocaleTimeString()}</span>
                   </div>
                 </div>
-              );
-            })
-          ) : (
-            <div className="event-card" style={{ gridTemplateColumns: "1fr", textAlign: "center", padding: "40px" }}>
+
+                <div className="event-actions">
+                  <button
+                    className="replay-btn"
+                    id={`replay-btn-${evt.event_id}`}
+                    onClick={() => setSelectedEvent(evt)}
+                    title="Watch the exact interaction video slice"
+                  >
+                    🎬 Replay Clip
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+
+          {filteredEvents.length === 0 && (
+            <div className="empty-state" id="empty-events-state">
               <p style={{ color: "var(--text-muted)" }}>No interaction events match the selected filter.</p>
             </div>
           )}
         </div>
       </section>
+
+      {/* Floating Action Button for Copilot */}
+      <button
+        className="copilot-fab"
+        id="copilot-fab-btn"
+        onClick={() => setCopilotOpen(true)}
+        title="Chat with AIsle Copilot"
+      >
+        <span className="copilot-fab-sparkle">✨</span>
+        <span>AIsle Copilot</span>
+      </button>
+
+      {/* Copilot Drawer Backdrop */}
+      {copilotOpen && (
+        <div
+          className="copilot-backdrop"
+          id="copilot-backdrop"
+          onClick={() => setCopilotOpen(false)}
+        />
+      )}
+
+      {/* Copilot Slide-over Drawer */}
+      <div
+        className={`copilot-drawer ${copilotOpen ? "open" : ""}`}
+        id="copilot-drawer-panel"
+      >
+        <div className="copilot-header">
+          <div className="copilot-header-brand">
+            <div className="copilot-avatar">✨</div>
+            <div className="copilot-title">
+              <h2>AIsle Retail Copilot</h2>
+              <div className="copilot-subtitle">
+                <span className="copilot-status-dot"></span>
+                <span>Grounded on 17 Benchmark Store Events • Gemini 2.5</span>
+              </div>
+            </div>
+          </div>
+          <div className="copilot-header-actions">
+            {chatMessages.length > 0 && (
+              <button
+                className="copilot-icon-btn"
+                onClick={() => setChatMessages([])}
+                title="Clear conversation"
+              >
+                🗑️ Clear
+              </button>
+            )}
+            <button
+              className="copilot-icon-btn"
+              onClick={() => setCopilotOpen(false)}
+              title="Close drawer"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        <div className="copilot-body" ref={chatScrollRef}>
+          {/* Quick Prompts Section (Shown when conversation is fresh or on demand) */}
+          {chatMessages.length === 0 && (
+            <div className="quick-prompts-section">
+              <div className="quick-prompts-header">
+                <h3>⚡ Recommended Store Inquiries</h3>
+              </div>
+              <div className="quick-prompts-grid">
+                {quickPrompts.map((qp) => (
+                  <button
+                    key={qp.id}
+                    className="quick-prompt-card"
+                    id={`quick-prompt-${qp.id}`}
+                    onClick={() => handleSendChat(qp.prompt)}
+                  >
+                    <div className="quick-prompt-icon">{qp.icon}</div>
+                    <div className="quick-prompt-details">
+                      <div className="quick-prompt-top">
+                        <span className="quick-prompt-title">{qp.title}</span>
+                        <span className="quick-prompt-cat">{qp.category}</span>
+                      </div>
+                      <p className="quick-prompt-text">"{qp.prompt}"</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Chat Messages */}
+          <div className="chat-messages">
+            {chatMessages.map((msg, idx) => (
+              <div
+                key={idx}
+                className={`chat-row ${msg.role}`}
+                id={`chat-msg-${idx}`}
+              >
+                <div className={`chat-bubble ${msg.role}`}>
+                  {msg.role === "assistant"
+                    ? renderFormattedContent(msg.content)
+                    : <p>{msg.content}</p>}
+                </div>
+
+                {/* Referenced Events for 1-Click Video Replay */}
+                {msg.role === "assistant" &&
+                  msg.referenced_events &&
+                  msg.referenced_events.length > 0 && (
+                    <div className="chat-referenced-events">
+                      <span className="chat-ref-label">
+                        🎥 Verified Interactions:
+                      </span>
+                      {msg.referenced_events.map((evtId) => (
+                        <button
+                          key={evtId}
+                          className="chat-replay-chip"
+                          onClick={() => handleReplayEvent(evtId)}
+                          title={`Watch interaction replay for ${evtId}`}
+                        >
+                          🎬 Replay <code>{evtId}</code>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                {/* Follow-up Suggestions */}
+                {msg.role === "assistant" &&
+                  msg.suggested_followups &&
+                  msg.suggested_followups.length > 0 && (
+                    <div className="chat-followups">
+                      <span className="chat-followup-label">
+                        Suggested Follow-ups:
+                      </span>
+                      {msg.suggested_followups.map((f, fIdx) => (
+                        <button
+                          key={fIdx}
+                          className="chat-followup-chip"
+                          onClick={() => handleSendChat(f)}
+                        >
+                          💬 {f}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+              </div>
+            ))}
+
+            {/* Typing Indicator */}
+            {chatLoading && (
+              <div className="chat-row assistant">
+                <div className="chat-typing-bubble">
+                  <span className="typing-dot"></span>
+                  <span className="typing-dot"></span>
+                  <span className="typing-dot"></span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Drawer Footer Input */}
+        <div className="copilot-footer">
+          <form
+            className="copilot-input-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSendChat();
+            }}
+          >
+            <input
+              type="text"
+              className="copilot-input"
+              id="copilot-chat-input"
+              placeholder="Ask about shelf conversion, dwell time, or showrooming..."
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              disabled={chatLoading}
+            />
+            <button
+              type="submit"
+              className="copilot-send-btn"
+              id="copilot-send-btn"
+              disabled={chatLoading || !chatInput.trim()}
+            >
+              <span>Send</span>
+              <span>➤</span>
+            </button>
+          </form>
+        </div>
+      </div>
 
       {/* Video Replay Modal */}
       {selectedEvent && (
