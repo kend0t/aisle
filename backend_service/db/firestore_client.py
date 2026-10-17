@@ -49,6 +49,26 @@ class FirestoreRepository:
                 e,
             )
             self._client = None
+            self._load_seed_data()
+
+    def _load_seed_data(self) -> None:
+        """Loads baseline benchmark interaction events into memory if running offline."""
+        import json
+        from pathlib import Path
+
+        seed_file = Path(__file__).resolve().parent.parent / "data" / "seed_benchmark_events.json"
+        if seed_file.exists():
+            try:
+                with open(seed_file, "r") as f:
+                    records = json.load(f)
+                    for item in records:
+                        self._in_memory_db[item["event_id"]] = item
+                logger.info(
+                    "Loaded %d baseline benchmark events from seed file into in-memory store",
+                    len(records),
+                )
+            except Exception as err:
+                logger.warning("Could not load seed benchmark data: %s", err)
 
     def save_event(self, event: InteractionEvent) -> str:
         """Saves an InteractionEvent to Firestore."""

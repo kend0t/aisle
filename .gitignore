@@ -6,7 +6,9 @@
 *.pt
 staged_clips/
 temp_uploads/
-data/
+/data/
+!backend_service/data/
+!backend_service/data/**
 
 # Python
 __pycache__/
