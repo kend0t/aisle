@@ -36,13 +36,20 @@ Both themes follow `prefers-color-scheme`. Add new colors as tokens in both them
 - Count what the data counts: a record is a **clip**, not a visit or a shopper.
 - Show only measured numbers. Do not display placeholder or hardcoded telemetry.
 - Errors say what failed and what to do next. They do not apologize.
+- Cut copy the layout already shows. No captions that restate a chart, no labels above self-evident controls, no subtitles that describe the panel.
+- Gemini text is kept short at the source: findings carry a title and an `action` of 15 words or fewer. Long summaries are clamped in lists and shown in full in the replay.
+
+### Numbers
+- Counts first, percentages second. Write "5 put back" large and "36% of picked up" small.
+- Every percentage states its base. Use one base per view.
+- The shelf funnel is the main metric: stopped, then picked up or no pick-up, then taken or put back. Band size is proportional to the count. It follows the selected zone, and its bands filter the clip list.
 
 ### Motion
 - Only in response to a user action: opening a clip, choosing a zone, hover on a control.
 - Respect `prefers-reduced-motion` (handled globally in `globals.css`).
 
 ### Layout
-- The overhead shelf map is the hero. Every number links to the clips behind it.
+- Order: shelf funnel, then the overhead shelf map with findings, then the clip list. Every number links to the clips behind it.
 - Copilot is an always-visible side panel on wide screens and a bottom sheet under 960px.
 - Must work at 390px width without horizontal scrolling.
 

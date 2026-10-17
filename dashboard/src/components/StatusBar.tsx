@@ -22,21 +22,17 @@ export default function StatusBar({ data, onOpenCopilot }: Props) {
       </div>
 
       <dl className={styles.facts}>
-        <div>
-          <dt>Clips analyzed</dt>
-          <dd>{data.events.length}</dd>
-        </div>
         {latency !== null && (
           <div title="Mean time Gemini takes to read one clip, measured per clip">
-            <dt>Gemini read time</dt>
-            <dd>{formatSeconds(latency)}</dd>
+            <dt>Gemini</dt>
+            <dd>{formatSeconds(latency)} per clip</dd>
           </div>
         )}
         <div aria-live="polite">
-          <dt>Data</dt>
+          <dt className="visually-hidden">Status</dt>
           <dd className={data.status === "error" ? styles.error : undefined}>
             {data.status === "error"
-              ? "Backend not reachable, retrying"
+              ? "Backend offline, retrying"
               : updated
                 ? `Updated ${updated}`
                 : "Loading"}

@@ -1,4 +1,4 @@
-import type { FindingSeverity, InsightsResponse, InteractionEvent } from "@/lib/api";
+import type { Finding, FindingSeverity, InsightsResponse, InteractionEvent } from "@/lib/api";
 import { retryInsights, type DashboardState } from "@/lib/dashboardStore";
 import { zoneName } from "@/lib/format";
 import ClipThumb from "./ClipThumb";
@@ -9,6 +9,13 @@ const SEVERITY_LABEL: Record<FindingSeverity, string> = {
   watch: "Watch",
   info: "Context",
 };
+
+/** Findings made before `action` existed end `detail` with the action; show that last sentence. */
+function actionText(finding: Finding): string {
+  if (finding.action) return finding.action;
+  const sentences = finding.detail.match(/[^.!?]+[.!?]+/g);
+  return sentences?.at(-1)?.trim() ?? finding.detail;
+}
 
 const MAX_THUMBS = 4;
 
@@ -30,15 +37,15 @@ export default function Findings({ insights, status, events, onOpenClip, onSelec
         {insights && (
           <p className={styles.source}>
             {insights.source === "gemini"
-              ? `Written by Gemini from ${insights.event_count} clips`
-              : "Written from fixed rules because Gemini is not available"}
+              ? `Gemini, ${insights.event_count} clips`
+              : "Rule-based, Gemini unavailable"}
           </p>
         )}
       </div>
 
       {showLoading && (
         <div className={styles.loading}>
-          <p>Gemini is reading {events.length} clips to write findings. This can take up to 30 seconds.</p>
+          <p>Reading {events.length} clips, about 30 s</p>
           <span className={styles.skeleton} />
           <span className={styles.skeleton} />
           <span className={styles.skeleton} />
@@ -47,7 +54,7 @@ export default function Findings({ insights, status, events, onOpenClip, onSelec
 
       {status === "error" && !insights && (
         <div className={styles.failed}>
-          <p>Findings did not load because the request to the backend failed.</p>
+          <p>Findings did not load.</p>
           <button type="button" onClick={retryInsights}>
             Try again
           </button>
@@ -55,7 +62,7 @@ export default function Findings({ insights, status, events, onOpenClip, onSelec
       )}
 
       {insights && insights.findings.length === 0 && (
-        <p className={styles.empty}>No findings yet. Findings appear once clips are analyzed.</p>
+        <p className={styles.empty}>No findings yet.</p>
       )}
 
       {insights && insights.findings.length > 0 && (
@@ -63,12 +70,12 @@ export default function Findings({ insights, status, events, onOpenClip, onSelec
           {insights.findings.map((finding, index) => {
             const extra = finding.evidence_event_ids.length - MAX_THUMBS;
             return (
-              <li key={index} className={styles.item}>
-                <span className={`${styles.severity} ${styles[finding.severity]}`}>
-                  {SEVERITY_LABEL[finding.severity]}
-                </span>
-                <h3>{finding.title}</h3>
-                <p className={styles.detail}>{finding.detail}</p>
+              <li key={index} className={`${styles.item} ${styles[finding.severity]}`}>
+                <h3>
+                  <span className="visually-hidden">{SEVERITY_LABEL[finding.severity]}: </span>
+                  {finding.title}
+                </h3>
+                <p className={styles.action}>{actionText(finding)}</p>
 
                 {finding.evidence_event_ids.length > 0 && (
                   <div className={styles.evidence}>
@@ -85,7 +92,7 @@ export default function Findings({ insights, status, events, onOpenClip, onSelec
                     className={styles.zoneLink}
                     onClick={() => onSelectZone(finding.zone_id as string)}
                   >
-                    Show {zoneName(finding.zone_id).toLowerCase()} clips
+                    {zoneName(finding.zone_id)}
                   </button>
                 )}
               </li>

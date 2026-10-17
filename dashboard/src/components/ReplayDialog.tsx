@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { clipUrl, type InteractionEvent } from "@/lib/api";
-import { formatSeconds, humanize, OUTCOME_LABEL, TAG_LABEL, zoneName } from "@/lib/format";
+import { formatDate, formatSeconds, humanize, OUTCOME_LABEL, TAG_LABEL, zoneName } from "@/lib/format";
 import styles from "./ReplayDialog.module.css";
 
 interface Props {
@@ -95,6 +95,10 @@ export default function ReplayDialog({ event, onClose }: Props) {
                 </div>
               ) : null}
               <div>
+                <dt>Date</dt>
+                <dd>{formatDate(event.timestamp)}</dd>
+              </div>
+              <div>
                 <dt>Clip</dt>
                 <dd>{event.event_id}</dd>
               </div>
@@ -102,10 +106,6 @@ export default function ReplayDialog({ event, onClose }: Props) {
 
             <details className={styles.record}>
               <summary>How Gemini read this clip</summary>
-              <p>
-                Gemini 2.5 Flash watched the clip and returned this record. The dashboard shows it
-                as stored.
-              </p>
               <pre>{JSON.stringify(geminiRecord(event), null, 2)}</pre>
             </details>
           </div>

@@ -47,20 +47,17 @@ export interface OutcomeCounts {
   none: number;
   /** Clips where an item left the shelf at some point: taken + put back. */
   pickedUp: number;
-  averageDwell: number;
 }
 
 export function countOutcomes(events: InteractionEvent[]): OutcomeCounts {
   const taken = events.filter((e) => e.conversion_outcome === "taken").length;
   const returned = events.filter((e) => e.conversion_outcome === "returned").length;
-  const dwell = events.reduce((sum, e) => sum + e.zone_dwell_time_seconds, 0);
   return {
     total: events.length,
     taken,
     returned,
     none: events.length - taken - returned,
     pickedUp: taken + returned,
-    averageDwell: events.length ? dwell / events.length : 0,
   };
 }
 

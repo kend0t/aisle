@@ -1,14 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useDashboard } from "@/lib/dashboardStore";
-import { countOutcomes } from "@/lib/format";
 import type { Outcome } from "@/lib/api";
 import StatusBar from "./StatusBar";
-import ShelfHeadline from "./ShelfHeadline";
+import ShelfFunnel from "./ShelfFunnel";
 import ShelfMap from "./ShelfMap";
 import Findings from "./Findings";
-import ZoneOutcomes from "./ZoneOutcomes";
 import ClipLog from "./ClipLog";
 import ReplayDialog from "./ReplayDialog";
 import CopilotPanel from "./CopilotPanel";
@@ -21,7 +19,6 @@ export default function Dashboard() {
   const [clipId, setClipId] = useState<string | null>(null);
   const [copilotOpen, setCopilotOpen] = useState(false);
 
-  const totals = useMemo(() => countOutcomes(data.events), [data.events]);
   const openClip = data.events.find((e) => e.event_id === clipId) ?? null;
   const attentionZones = (data.insights?.findings ?? [])
     .filter((f) => f.severity === "act" && f.zone_id)
@@ -38,17 +35,24 @@ export default function Dashboard() {
 
         {data.status === "error" && data.events.length === 0 ? (
           <section className={styles.offline} aria-live="polite">
-            <h1>No data</h1>
+            <h1>Backend offline. Retrying.</h1>
             <p>{data.error}</p>
-            <p>
-              Start the backend from the repository root with{" "}
-              <code>uvicorn backend_service.main:app --port 8000</code>. This page retries every 8
-              seconds.
-            </p>
+            {process.env.NODE_ENV === "development" && (
+              <p>
+                <code>uv run uvicorn backend_service.main:app --port 8000</code>
+              </p>
+            )}
           </section>
         ) : (
           <main className={styles.content}>
-            <ShelfHeadline totals={totals} loading={data.status === "loading"} />
+            <ShelfFunnel
+              loading={data.status === "loading"}
+              events={data.events}
+              zoneId={zoneId}
+              outcome={outcome}
+              onSelectOutcome={setOutcome}
+              onClearZone={() => setZoneId(null)}
+            />
 
             <div className={styles.hero}>
               <ShelfMap
@@ -68,30 +72,20 @@ export default function Dashboard() {
             </div>
 
             {ready && (
-              <>
-                <ZoneOutcomes
-                  events={data.events}
-                  selectedZone={zoneId}
-                  onSelectZone={toggleZone}
-                  onSelectOutcome={setOutcome}
-                />
-
-                <ClipLog
-                  events={data.events}
-                  zoneId={zoneId}
-                  outcome={outcome}
-                  onClearZone={() => setZoneId(null)}
-                  onOutcomeChange={setOutcome}
-                  onOpenClip={setClipId}
-                />
-              </>
+              <ClipLog
+                events={data.events}
+                zoneId={zoneId}
+                outcome={outcome}
+                onClearZone={() => setZoneId(null)}
+                onOutcomeChange={setOutcome}
+                onOpenClip={setClipId}
+              />
             )}
           </main>
         )}
       </div>
 
       <CopilotPanel
-        eventCount={data.events.length}
         quickPrompts={data.quickPrompts}
         open={copilotOpen}
         onClose={() => setCopilotOpen(false)}

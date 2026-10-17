@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError, type QuickPrompt } from "@/lib/api";
+import ClipThumb from "./ClipThumb";
 import Markdown from "./Markdown";
 import styles from "./CopilotPanel.module.css";
 
@@ -13,14 +14,13 @@ interface Message {
 }
 
 interface Props {
-  eventCount: number;
   quickPrompts: QuickPrompt[];
   open: boolean;
   onClose: () => void;
   onOpenClip: (eventId: string) => void;
 }
 
-export default function CopilotPanel({ eventCount, quickPrompts, open, onClose, onOpenClip }: Props) {
+export default function CopilotPanel({ quickPrompts, open, onClose, onOpenClip }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
@@ -57,7 +57,7 @@ export default function CopilotPanel({ eventCount, quickPrompts, open, onClose, 
       const reason = err instanceof ApiError ? err.message : "The request failed.";
       setMessages((prev) => [
         ...prev,
-        { role: "error", content: `No answer. ${reason} Check that the backend is running, then ask again.` },
+        { role: "error", content: `No answer: ${reason}` },
       ]);
     } finally {
       setPending(false);
@@ -70,14 +70,7 @@ export default function CopilotPanel({ eventCount, quickPrompts, open, onClose, 
       aria-labelledby="copilot-heading"
     >
       <div className={styles.header}>
-        <div>
-          <h2 id="copilot-heading">Ask about this shelf</h2>
-          <p>
-            {eventCount > 0
-              ? `Gemini answers from the ${eventCount} clips on this page and cites them.`
-              : "Gemini answers from the clips on this page and cites them."}
-          </p>
-        </div>
+        <h2 id="copilot-heading">Ask about this shelf</h2>
         <div className={styles.headerActions}>
           {messages.length > 0 && (
             <button type="button" onClick={() => setMessages([])}>
@@ -93,11 +86,9 @@ export default function CopilotPanel({ eventCount, quickPrompts, open, onClose, 
       <div className={styles.body} ref={scrollRef} aria-live="polite">
         {messages.length === 0 && quickPrompts.length > 0 && (
           <div className={styles.suggestions}>
-            <p className={styles.suggestionsLabel}>Try one of these</p>
             {quickPrompts.map((qp) => (
               <button key={qp.id} type="button" onClick={() => ask(qp.prompt)}>
-                <strong>{qp.title}</strong>
-                <span>{qp.prompt}</span>
+                {qp.prompt}
               </button>
             ))}
           </div>
@@ -113,11 +104,8 @@ export default function CopilotPanel({ eventCount, quickPrompts, open, onClose, 
 
             {message.referencedEvents && message.referencedEvents.length > 0 && (
               <div className={styles.cited}>
-                <span>Clips cited</span>
                 {message.referencedEvents.map((id) => (
-                  <button key={id} type="button" onClick={() => onOpenClip(id)}>
-                    {id}
-                  </button>
+                  <ClipThumb key={id} eventId={id} size="s" onOpen={onOpenClip} />
                 ))}
               </div>
             )}
@@ -134,7 +122,7 @@ export default function CopilotPanel({ eventCount, quickPrompts, open, onClose, 
           </div>
         ))}
 
-        {pending && <p className={styles.pending}>Gemini is reading the clips</p>}
+        {pending && <p className={styles.pending}>Reading clips</p>}
       </div>
 
       <form

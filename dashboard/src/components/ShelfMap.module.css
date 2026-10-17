@@ -77,20 +77,16 @@
   white-space: nowrap;
 }
 
-.labelRate {
-  font-size: var(--text-2xl);
-  color: #b3394a;
-}
-
-.labelDetail {
-  font-size: var(--text-xs);
+.labelCount {
+  font-size: var(--text-s);
   color: #47505e;
+  white-space: nowrap;
 }
 
-.caption {
-  font-size: var(--text-xs);
-  color: var(--ink-3);
-  max-width: 70ch;
+.labelFigure {
+  font-size: var(--text-2xl);
+  line-height: 1;
+  color: #b3394a;
 }
 
 @media (max-width: 640px) {
@@ -104,11 +100,11 @@
     font-size: 11px;
   }
 
-  .labelRate {
-    font-size: var(--text-xl);
+  .labelCount {
+    font-size: var(--text-xs);
   }
 
-  .labelDetail {
-    display: none;
+  .labelFigure {
+    font-size: var(--text-xl);
   }
 }

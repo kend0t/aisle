@@ -18,7 +18,7 @@ export default function ShelfMap({ ready, events, selectedZone, attentionZones, 
   });
 
   return (
-    <figure className={styles.map}>
+    <figure className={styles.map} aria-label="Shelf map. Select a zone to filter.">
       <div className={styles.frame}>
         {/* eslint-disable-next-line @next/next/no-img-element -- fixed-size local still, no optimization needed */}
         <img
@@ -43,7 +43,7 @@ export default function ShelfMap({ ready, events, selectedZone, attentionZones, 
           ))}
         </svg>
 
-        {ready && zones.map(({ zone, counts, rate }) => {
+        {ready && zones.map(({ zone, counts }) => {
           const [cx, cy] = zoneCentroid(zone);
           const attention = attentionZones.includes(zone.id);
           return (
@@ -56,18 +56,14 @@ export default function ShelfMap({ ready, events, selectedZone, attentionZones, 
               onClick={() => onSelectZone(zone.id)}
             >
               <span className={styles.labelName}>{zone.name}</span>
-              <span className={`figure ${styles.labelRate}`}>{rate}%</span>
-              <span className={styles.labelDetail}>
-                put back, {counts.returned} of {counts.pickedUp} picked up
+              <span className={styles.labelCount}>
+                <span className={`figure ${styles.labelFigure}`}>{counts.returned}</span> of{" "}
+                {counts.pickedUp} put back
               </span>
             </button>
           );
         })}
       </div>
-      <figcaption className={styles.caption}>
-        The edge camera watches the floor in front of each bay. Darker red means more items put
-        back. Select a zone to filter the clips.
-      </figcaption>
     </figure>
   );
 }

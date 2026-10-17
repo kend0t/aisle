@@ -1,5 +1,5 @@
 import type { InteractionEvent, Outcome } from "@/lib/api";
-import { formatDate, humanize, OUTCOME_LABEL, TAG_LABEL, zoneName } from "@/lib/format";
+import { countOutcomes, humanize, OUTCOME_LABEL, TAG_LABEL, zoneName } from "@/lib/format";
 import ClipThumb from "./ClipThumb";
 import styles from "./ClipLog.module.css";
 
@@ -22,10 +22,10 @@ export default function ClipLog({
   onOutcomeChange,
   onOpenClip,
 }: Props) {
-  const shown = events.filter(
-    (e) =>
-      (!zoneId || e.zone_id === zoneId) && (outcome === "all" || e.conversion_outcome === outcome),
-  );
+  const inZone = events.filter((e) => !zoneId || e.zone_id === zoneId);
+  const shown = inZone.filter((e) => outcome === "all" || e.conversion_outcome === outcome);
+  const counts = countOutcomes(inZone);
+  const filterCount = { all: counts.total, taken: counts.taken, returned: counts.returned, none: counts.none };
 
   return (
     <section className={styles.log} aria-labelledby="clips-heading">
@@ -51,7 +51,8 @@ export default function ClipLog({
                 aria-checked={outcome === value}
                 onClick={() => onOutcomeChange(value)}
               >
-                {value === "all" ? "All" : OUTCOME_LABEL[value]}
+                {value === "all" ? "All" : OUTCOME_LABEL[value]}{" "}
+                <span className={styles.filterCount}>{filterCount[value]}</span>
               </button>
             ))}
           </div>
@@ -84,7 +85,6 @@ export default function ClipLog({
                   </span>
                   <span>{zoneName(event.zone_id)}</span>
                   <span>{event.zone_dwell_time_seconds} s at shelf</span>
-                  <span className={styles.date}>{formatDate(event.timestamp)}</span>
                 </div>
 
                 <p className={styles.summary}>{event.behavioral_summary}</p>
@@ -95,7 +95,6 @@ export default function ClipLog({
                       {TAG_LABEL[tag] ?? humanize(tag)}
                     </span>
                   ))}
-                  <span className={styles.product}>{humanize(event.product_category_engaged)}</span>
                   {event.shopper_group_size > 1 && (
                     <span className={styles.product}>{event.shopper_group_size} shoppers</span>
                   )}

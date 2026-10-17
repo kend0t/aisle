@@ -57,6 +57,8 @@ export type FindingSeverity = "act" | "watch" | "info";
 
 export interface Finding {
   title: string;
+  /** Shelf-level change to try. Empty on findings cached before the field existed. */
+  action: string;
   detail: string;
   zone_id: string | null;
   severity: FindingSeverity;

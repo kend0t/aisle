@@ -39,12 +39,17 @@
   font-size: var(--text-xs);
 }
 
+.facts div {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
 .facts dt {
   color: var(--ink-3);
 }
 
 .facts dd {
-  font-weight: 600;
   font-size: var(--text-s);
 }
 
