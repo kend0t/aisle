@@ -1,21 +1,25 @@
 # Ignore Mac system files
 .DS_Store
 
-# Ignore large weights and mock video data
-legacy_v1/yolov8m.pt
-legacy_v1/output/
-legacy_v1/data/
+# Ignore video clips, weights, and caches
 *.mp4
 *.pt
-mock_data/
+staged_clips/
+temp_uploads/
+data/
 
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
+.venv/
 venv/
 env/
 .env
+.env.*
+!.env.example
+secrets/
+.pytest_cache/
 
 # Next.js / Node
 node_modules/
@@ -27,3 +31,19 @@ build/
 # IDEs
 .vscode/
 .idea/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+!*.tfvars.example
+terraform.tfvars.json
+terraform/README.md
+
+# Setup Guides (scratch/internal)
+docs/setup/
+
+
