@@ -1,12 +1,13 @@
-import json
 import logging
-import re
+import threading
 from typing import Dict, List, Optional, Tuple
 
-from backend_service.db.firestore_client import FirestoreRepository
-from backend_service.models.insights import Finding, FindingSeverity, InsightsResponse
-from backend_service.models.interaction_event import ConversionOutcome, InteractionEvent
+from backend_service.db.firestore_client import EventRepository
+from backend_service.errors import GeminiError
+from backend_service.models.insights import Finding, FindingList, FindingSeverity, InsightsResponse
+from backend_service.models.interaction_event import BehaviorTag, ConversionOutcome, InteractionEvent
 from backend_service.services.chat_service import StoreChatService
+from backend_service.services.gemini_client import GeminiClient
 
 logger = logging.getLogger(__name__)
 
@@ -21,70 +22,58 @@ Rules:
 - action: one imperative sentence, 15 words or fewer, naming a change at the shelf.
 - detail: one sentence of evidence with the numbers. Plain language, no hype.
 - severity: 'act' when a fix is clear and the evidence covers several clips, 'watch' when the pattern is weaker, 'info' for context.
-
-Return ONLY a JSON object:
-{
-  "findings": [
-    {
-      "title": "<8 words or fewer>",
-      "action": "<15 words or fewer>",
-      "detail": "<1 sentence>",
-      "zone_id": "<zone id or null>",
-      "severity": "<act | watch | info>",
-      "evidence_event_ids": ["evt_..."]
-    }
-  ]
-}
+- zone_id: the zone the finding applies to, or null when it spans zones.
 """
-
-PHONE_PATTERN = re.compile(r"\bphone\b|photograph|picture", re.IGNORECASE)
-LOW_SHELF_PATTERN = re.compile(r"bend|crouch|lower shelf|bottom shelf", re.IGNORECASE)
 
 
 class InsightsService:
     """Produces ranked findings from stored events, cached until the events change."""
 
-    def __init__(self, firestore_repo: FirestoreRepository, chat_service: StoreChatService) -> None:
-        self.firestore = firestore_repo
-        self.chat = chat_service
+    def __init__(self, repo: EventRepository, chat: StoreChatService, gemini: GeminiClient) -> None:
+        self.repo = repo
+        self.chat = chat
+        self.gemini = gemini
         self._cache_key: Optional[Tuple] = None
         self._cached: Optional[InsightsResponse] = None
+        # A Gemini run takes about 30 s; concurrent requests wait for it instead of starting their own.
+        self._lock = threading.Lock()
 
     def get_insights(self) -> InsightsResponse:
-        events = self.firestore.list_events(limit=500)
+        events = self.repo.list_events(limit=500)
         key = tuple(sorted((e.event_id, e.created_at, tuple(e.behavior_tags)) for e in events))
-        if self._cached is not None and key == self._cache_key:
+        with self._lock:
+            if self._cached is None or key != self._cache_key:
+                self._cached = self._generate(events)
+                self._cache_key = key
             return self._cached
-
-        response = self._generate(events)
-        self._cache_key = key
-        self._cached = response
-        return response
 
     def _generate(self, events: List[InteractionEvent]) -> InsightsResponse:
         known_ids = {e.event_id for e in events}
-        if events and self.chat.gemini_available:
+        if events and self.gemini.available:
             try:
-                raw = self.chat.generate_json(INSIGHTS_SYSTEM_PROMPT, self.chat.build_grounding_context())
-                findings = self._parse(raw, known_ids)
+                result = self.gemini.generate(
+                    system=INSIGHTS_SYSTEM_PROMPT,
+                    contents=[self.chat.build_grounding_context(events)],
+                    schema=FindingList,
+                    temperature=0.3,
+                )
+                findings = [
+                    Finding(
+                        **draft.model_dump(exclude={"evidence_event_ids"}),
+                        evidence_event_ids=[i for i in draft.evidence_event_ids if i in known_ids],
+                    )
+                    for draft in result.findings[:3]
+                ]
                 if findings:
                     return InsightsResponse(findings=findings, source="gemini", event_count=len(events))
-                logger.warning("Gemini returned no usable findings. Using rule-based findings.")
-            except Exception as e:
-                logger.error("Failed to generate Gemini findings (%s). Using rule-based findings.", e)
+                logger.warning("Gemini returned no findings. Using rule-based findings.")
+            except GeminiError as e:
+                # Rule-based findings are labelled as such in the UI, so this fallback is visible.
+                logger.error("Gemini findings failed (%s). Using rule-based findings.", e)
 
         return InsightsResponse(
             findings=self._rule_based_findings(events), source="rules", event_count=len(events)
         )
-
-    def _parse(self, raw: str, known_ids: set) -> List[Finding]:
-        data = json.loads(raw)
-        findings: List[Finding] = []
-        for item in data.get("findings", [])[:3]:
-            finding = Finding.model_validate(item)
-            finding.evidence_event_ids = [i for i in finding.evidence_event_ids if i in known_ids]
-            findings.append(finding)
-        return findings
 
     def _rule_based_findings(self, events: List[InteractionEvent]) -> List[Finding]:
         """Deterministic findings for offline mode or when Gemini fails."""
@@ -123,7 +112,7 @@ class InsightsService:
 
         phone = [
             e for e in events
-            if "phone_check" in e.behavior_tags or PHONE_PATTERN.search(e.behavioral_summary)
+            if BehaviorTag.PHONE_CHECK in e.behavior_tags
         ]
         if phone:
             put_back = sum(1 for e in phone if e.conversion_outcome != ConversionOutcome.TAKEN)
@@ -139,7 +128,7 @@ class InsightsService:
 
         low = [
             e for e in events
-            if "low_shelf_reach" in e.behavior_tags or LOW_SHELF_PATTERN.search(e.behavioral_summary)
+            if BehaviorTag.LOW_SHELF_REACH in e.behavior_tags
         ]
         if low:
             taken = sum(1 for e in low if e.conversion_outcome == ConversionOutcome.TAKEN)

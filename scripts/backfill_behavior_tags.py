@@ -12,54 +12,56 @@ Usage (from the repo root):
 """
 
 import argparse
-import json
 import logging
-import os
 import sys
 from typing import List, Optional
 
+from pydantic import BaseModel
+
 from backend_service.config import get_settings
-from backend_service.models.interaction_event import filter_behavior_tags
+from backend_service.errors import GeminiError
+from backend_service.models.interaction_event import BehaviorTag
 from backend_service.services.gemini_analyzer import BEHAVIOR_TAG_GUIDE
+from backend_service.services.gemini_client import GeminiClient
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("aisle.backfill")
 
 TAGS_PROMPT = (
     "You watch a short overhead clip of a shopper at a retail shelf.\n"
-    "Return ONLY a JSON object of the form {\"behavior_tags\": [...]}, using these definitions:\n"
+    "Return the behavior tags, using these definitions:\n"
     + BEHAVIOR_TAG_GUIDE
 )
 
 
-def tag_clip(client, model: str, video_uri: str, summary: str) -> List[str]:
+class TagsOnly(BaseModel):
+    behavior_tags: List[BehaviorTag]
+
+
+def tag_clip(gemini: GeminiClient, video_uri: str, summary: str) -> List[str]:
     from google.genai import types
 
-    response = client.models.generate_content(
-        model=model,
+    result = gemini.generate(
+        system=TAGS_PROMPT,
         contents=[
             types.Part.from_uri(file_uri=video_uri, mime_type="video/mp4"),
             f"An earlier analysis of this clip said: \"{summary}\"\nReturn the behavior tags.",
         ],
-        config=types.GenerateContentConfig(
-            system_instruction=TAGS_PROMPT,
-            temperature=0.1,
-            response_mime_type="application/json",
-        ),
+        schema=TagsOnly,
+        temperature=0.1,
     )
-    return filter_behavior_tags(json.loads(response.text).get("behavior_tags", []))
+    return list(dict.fromkeys(tag.value for tag in result.behavior_tags))
 
 
 def main(write: bool, only: Optional[List[str]]) -> None:
     settings = get_settings()
-    if settings.GOOGLE_APPLICATION_CREDENTIALS:
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = settings.GOOGLE_APPLICATION_CREDENTIALS
+    gemini = GeminiClient(settings)  # also exports GOOGLE_APPLICATION_CREDENTIALS for Firestore
+    if not gemini.available:
+        sys.exit("Gemini is not configured: set GCP_PROJECT_ID or GEMINI_API_KEY.")
 
-    from google import genai
     from google.cloud import firestore
 
     db = firestore.Client(project=settings.GCP_PROJECT_ID, database=settings.FIRESTORE_DATABASE)
-    client = genai.Client(vertexai=True, project=settings.GCP_PROJECT_ID, location=settings.GCP_REGION)
     collection = db.collection(settings.FIRESTORE_COLLECTION)
 
     logger.info(
@@ -79,8 +81,8 @@ def main(write: bool, only: Optional[List[str]]) -> None:
             logger.warning("%s: skipped, no gs:// clip (%s)", doc.id, video_uri)
             continue
         try:
-            tags = tag_clip(client, settings.GEMINI_MODEL, video_uri, data.get("behavioral_summary", ""))
-        except Exception as e:
+            tags = tag_clip(gemini, video_uri, data.get("behavioral_summary", ""))
+        except GeminiError as e:
             failures += 1
             logger.error("%s: Gemini call failed: %s", doc.id, e)
             continue
