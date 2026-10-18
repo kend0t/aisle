@@ -7,10 +7,9 @@ interface Props {
   failed: boolean;
   /** Time of the last successful load in ms since the epoch; 0 before the first one. */
   updatedAt: number;
-  onOpenCopilot: () => void;
 }
 
-export default function StatusBar({ events, failed, updatedAt, onOpenCopilot }: Props) {
+export default function StatusBar({ events, failed, updatedAt }: Props) {
   const latency = meanGeminiLatency(events);
   const updated = updatedAt
     ? new Date(updatedAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
@@ -42,9 +41,6 @@ export default function StatusBar({ events, failed, updatedAt, onOpenCopilot }: 
         </div>
       </dl>
 
-      <button type="button" className={styles.copilotButton} onClick={onOpenCopilot}>
-        Ask about this shelf
-      </button>
     </header>
   );
 }

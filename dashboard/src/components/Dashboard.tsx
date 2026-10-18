@@ -9,7 +9,9 @@ import ShelfMap from "./ShelfMap";
 import Findings from "./Findings";
 import ClipLog from "./ClipLog";
 import ReplayDialog from "./ReplayDialog";
+import CopilotLauncher from "./CopilotLauncher";
 import CopilotPanel from "./CopilotPanel";
+import { setCopilotExpanded, useCopilotExpanded } from "@/lib/copilotPreference";
 import styles from "./Dashboard.module.css";
 
 const NO_EVENTS: InteractionEvent[] = [];
@@ -21,7 +23,8 @@ export default function Dashboard() {
   const [zoneId, setZoneId] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<Outcome | "all">("all");
   const [clipId, setClipId] = useState<string | null>(null);
-  const [copilotOpen, setCopilotOpen] = useState(false);
+  const copilotExpanded = useCopilotExpanded();
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const openClip = events.find((e) => e.event_id === clipId) ?? null;
   const attentionZones = (insightsQuery.data?.findings ?? [])
@@ -36,13 +39,12 @@ export default function Dashboard() {
   const toggleZone = (id: string) => setZoneId((current) => (current === id ? null : id));
 
   return (
-    <div className={styles.shell}>
+    <div className={`${styles.shell} ${copilotExpanded ? "" : styles.collapsed}`}>
       <div className={styles.main}>
         <StatusBar
           events={events}
           failed={eventsQuery.isError}
           updatedAt={eventsQuery.dataUpdatedAt}
-          onOpenCopilot={() => setCopilotOpen(true)}
         />
 
         {error && !ready ? (
@@ -100,9 +102,21 @@ export default function Dashboard() {
       </div>
 
       <CopilotPanel
-        open={copilotOpen}
-        onClose={() => setCopilotOpen(false)}
+        expanded={copilotExpanded}
+        sheetOpen={sheetOpen}
+        onHide={() => setCopilotExpanded(false)}
+        onCloseSheet={() => setSheetOpen(false)}
         onOpenClip={setClipId}
+      />
+
+      <CopilotLauncher
+        expanded={copilotExpanded}
+        sheetOpen={sheetOpen}
+        onOpen={() => {
+          // One control for both layouts: the wide panel expands, the narrow sheet opens.
+          setCopilotExpanded(true);
+          setSheetOpen(true);
+        }}
       />
 
       <ReplayDialog event={openClip} onClose={() => setClipId(null)} />

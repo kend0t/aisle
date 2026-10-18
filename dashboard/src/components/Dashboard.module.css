@@ -2,11 +2,17 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--copilot-width);
   min-height: 100vh;
+  /* The panel keeps its width while its column closes; clip it without breaking sticky. */
+  overflow-x: clip;
+  transition: grid-template-columns 200ms ease;
+}
+
+.collapsed {
+  grid-template-columns: minmax(0, 1fr) 0;
 }
 
 .main {
   min-width: 0;
-  border-right: 1px solid var(--line);
 }
 
 .content {
@@ -58,12 +64,14 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .main {
-    border-right: none;
-  }
-
   .content {
     padding: 24px 16px 96px;
     gap: 32px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell {
+    transition: none;
   }
 }

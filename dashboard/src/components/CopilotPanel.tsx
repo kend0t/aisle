@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { ChatTurn } from "@/lib/api";
 import { useChat, useQuickPrompts } from "@/lib/queries";
 import ClipThumb from "./ClipThumb";
 import Markdown from "./Markdown";
@@ -14,34 +15,50 @@ interface Message {
 }
 
 interface Props {
-  open: boolean;
-  onClose: () => void;
+  /** Desktop: the panel is shown. */
+  expanded: boolean;
+  /** Under 960 px: the bottom sheet is shown. */
+  sheetOpen: boolean;
+  onHide: () => void;
+  onCloseSheet: () => void;
   onOpenClip: (eventId: string) => void;
 }
 
-export default function CopilotPanel({ open, onClose, onOpenClip }: Props) {
+function toHistory(messages: Message[]): ChatTurn[] {
+  return messages
+    .filter((m): m is Message & { role: "user" | "assistant" } => m.role !== "error")
+    .slice(-6)
+    .map(({ role, content }) => ({ role, content }));
+}
+
+export default function CopilotPanel({ expanded, sheetOpen, onHide, onCloseSheet, onOpenClip }: Props) {
   const quickPrompts = useQuickPrompts().data ?? [];
   const chat = useChat();
   const pending = chat.isPending;
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: reduce ? "auto" : "smooth",
+    });
   }, [messages, pending]);
 
-  const ask = (question: string) => {
-    const text = question.trim();
-    if (!text || pending) return;
+  // Focus the composer when the panel or sheet is opened, not on the first render.
+  const wasVisible = useRef({ expanded, sheetOpen });
+  useEffect(() => {
+    const before = wasVisible.current;
+    if ((expanded && !before.expanded) || (sheetOpen && !before.sheetOpen)) {
+      inputRef.current?.focus();
+    }
+    wasVisible.current = { expanded, sheetOpen };
+  }, [expanded, sheetOpen]);
 
-    const history = messages
-      .filter((m): m is Message & { role: "user" | "assistant" } => m.role !== "error")
-      .slice(-6)
-      .map(({ role, content }) => ({ role, content }));
-
-    setMessages((prev) => [...prev, { role: "user", content: text }]);
-    setInput("");
+  const send = (text: string, history: ChatTurn[]) => {
     chat.mutate(
       { message: text, history },
       {
@@ -61,34 +78,56 @@ export default function CopilotPanel({ open, onClose, onOpenClip }: Props) {
     );
   };
 
+  const ask = (question: string) => {
+    const text = question.trim();
+    if (!text || pending) return;
+    const history = toHistory(messages);
+    setMessages((prev) => [...prev, { role: "user", content: text }]);
+    setInput("");
+    send(text, history);
+  };
+
+  /** Drops the error and sends the last question again. */
+  const retry = () => {
+    const withoutError = messages.slice(0, -1);
+    const lastQuestion = withoutError.at(-1);
+    if (!lastQuestion || lastQuestion.role !== "user" || pending) return;
+    setMessages(withoutError);
+    send(lastQuestion.content, toHistory(withoutError.slice(0, -1)));
+  };
+
+  const canSend = input.trim().length > 0 && !pending;
+
   return (
     <aside
-      className={`${styles.panel} ${open ? styles.open : ""}`}
+      className={`${styles.panel} ${expanded ? "" : styles.collapsed} ${sheetOpen ? styles.open : ""}`}
       aria-labelledby="copilot-heading"
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && sheetOpen) onCloseSheet();
+      }}
     >
       <div className={styles.header}>
         <h2 id="copilot-heading">Ask about this shelf</h2>
         <div className={styles.headerActions}>
           {messages.length > 0 && (
             <button type="button" onClick={() => setMessages([])}>
-              Clear
+              New chat
             </button>
           )}
-          <button type="button" className={styles.closeButton} onClick={onClose}>
+          <button type="button" className={styles.hideButton} onClick={onHide}>
+            Hide
+          </button>
+          <button type="button" className={styles.closeButton} onClick={onCloseSheet}>
             Close
           </button>
         </div>
       </div>
 
       <div className={styles.body} ref={scrollRef} aria-live="polite">
-        {messages.length === 0 && quickPrompts.length > 0 && (
-          <div className={styles.suggestions}>
-            {quickPrompts.map((qp) => (
-              <button key={qp.id} type="button" onClick={() => ask(qp.prompt)}>
-                {qp.prompt}
-              </button>
-            ))}
-          </div>
+        {messages.length === 0 && (
+          <p className={styles.empty}>
+            Gemini answers from the clips on this page and links every clip it cites.
+          </p>
         )}
 
         {messages.map((message, index) => (
@@ -97,6 +136,12 @@ export default function CopilotPanel({ open, onClose, onOpenClip }: Props) {
               <Markdown content={message.content} onOpenClip={onOpenClip} />
             ) : (
               <p>{message.content}</p>
+            )}
+
+            {message.role === "error" && index === messages.length - 1 && (
+              <button type="button" className={styles.retry} onClick={retry} disabled={pending}>
+                Try again
+              </button>
             )}
 
             {message.referencedEvents && message.referencedEvents.length > 0 && (
@@ -108,9 +153,9 @@ export default function CopilotPanel({ open, onClose, onOpenClip }: Props) {
             )}
 
             {message.followups && message.followups.length > 0 && index === messages.length - 1 && (
-              <div className={styles.followups}>
+              <div className={styles.chips}>
                 {message.followups.map((f) => (
-                  <button key={f} type="button" onClick={() => ask(f)}>
+                  <button key={f} type="button" onClick={() => ask(f)} disabled={pending}>
                     {f}
                   </button>
                 ))}
@@ -119,36 +164,64 @@ export default function CopilotPanel({ open, onClose, onOpenClip }: Props) {
           </div>
         ))}
 
-        {pending && <p className={styles.pending}>Reading clips</p>}
+        {pending && (
+          <div className={styles.typing} role="status" aria-label="Copilot is answering">
+            <span />
+            <span />
+            <span />
+          </div>
+        )}
       </div>
 
-      <form
-        className={styles.form}
-        onSubmit={(e) => {
-          e.preventDefault();
-          ask(input);
-        }}
-      >
-        <label htmlFor="copilot-input" className="visually-hidden">
-          Question
-        </label>
-        <textarea
-          id="copilot-input"
-          rows={2}
-          value={input}
-          placeholder="Why are shoppers putting cereal back?"
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              ask(input);
-            }
+      <div className={styles.footer}>
+        {messages.length === 0 && quickPrompts.length > 0 && (
+          <div className={styles.chips}>
+            {quickPrompts.map((qp) => (
+              <button key={qp.id} type="button" onClick={() => ask(qp.prompt)}>
+                {qp.prompt}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <form
+          className={styles.composer}
+          onSubmit={(e) => {
+            e.preventDefault();
+            ask(input);
           }}
-        />
-        <button type="submit" disabled={pending || !input.trim()}>
-          Ask
-        </button>
-      </form>
+        >
+          <label htmlFor="copilot-input" className="visually-hidden">
+            Question
+          </label>
+          <textarea
+            id="copilot-input"
+            ref={inputRef}
+            rows={1}
+            value={input}
+            placeholder="Ask about these clips"
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                ask(input);
+              }
+            }}
+          />
+          <button type="submit" className={styles.send} disabled={!canSend} aria-label="Send">
+            <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
+              <path
+                d="M10 16V4M4.5 9.5 10 4l5.5 5.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </form>
+      </div>
     </aside>
   );
 }

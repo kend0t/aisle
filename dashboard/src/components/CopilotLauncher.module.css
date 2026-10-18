@@ -1,0 +1,46 @@
+.launcher {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px 12px 16px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--shelf);
+  font-size: var(--text-s);
+  font-weight: 600;
+  box-shadow: 0 6px 20px rgba(16, 20, 26, 0.22);
+}
+
+.launcher:hover {
+  filter: brightness(1.15);
+}
+
+.launcher:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+/* Wide screens: only while the panel is collapsed. */
+.expanded {
+  display: none;
+}
+
+@media (max-width: 960px) {
+  .launcher {
+    right: 16px;
+    bottom: 16px;
+  }
+
+  /* Narrow screens: always, except while the sheet is open. */
+  .expanded {
+    display: flex;
+  }
+
+  .sheetOpen {
+    display: none;
+  }
+}
