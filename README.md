@@ -126,6 +126,23 @@ Tested against overhead retail interaction footage:
 
 Steps 2 and 3 call Gemini and need credentials.
 
+### Results (gemini-2.5-flash, 17 clips)
+
+| | Before | After |
+|---|---|---|
+| Copilot answers with every number right | 13 of 20 (context in prompt) | 20 of 20 (counting tools), 3.5 s instead of 6.0 s |
+| Clip outcome agreement with labels | 70% (one structured read) | 85% (three reads, majority) |
+| Clips with the same outcome on every repeat | 11 of 17 | 15 of 17 |
+| Cost per clip | $0.0015 | $0.0046 |
+
+What the numbers do not show:
+
+*   The labels come from a frame-by-frame review by Claude, not from people, and only 9 of the 17 clips can be called from the clip. The differences rest on a few clips.
+*   8 clips end before the shopper is done, yet every reader still answers taken or put back with confidence. Three reads flag 7 of those 24 reads; a single read flags none. An explicit "cannot tell" outcome is the next fix.
+*   The 17 clips show about 6 shoppers, cut into overlapping windows by the camera node, so counts overstate shoppers.
+*   The observation check (picked up / left with item) never caught a contradiction: Gemini keeps its own observations and outcome consistent. The disagreement between reads is what catches errors.
+*   Three reads in parallel take 14.5 s per clip against 8.2 s for one.
+
 ---
 
 *Submitted for the Google AI Builder Cup (Retail & Commerce Track).*

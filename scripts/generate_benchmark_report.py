@@ -55,7 +55,7 @@ def outcome_section(events: List[InteractionEvent]) -> List[str]:
     lines = [
         "## Stored clips",
         "",
-        f"{len(events)} clips. Outcomes are Gemini's readings, checked against human labels under 'Reading accuracy'.",
+        f"{len(events)} clips. Outcomes are Gemini's readings, checked against labels under 'Reading accuracy'.",
         "",
         "| Outcome | Clips | Share of picked up |",
         "|---|---|---|",
