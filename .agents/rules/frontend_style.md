@@ -55,15 +55,15 @@ Both themes follow `prefers-color-scheme`. Add new colors as tokens in both them
 
 ## 3. Component Architecture
 - Keep components small and focused.
-- Separate data-fetching logic from presentational components. 
+- Separate data-fetching logic from presentational components. Server data goes through TanStack Query hooks in `src/lib/queries.ts`; components do not call `fetch` directly.
 - Use Server Components by default; only use `use client` when interactivity (e.g., hooks, state, event listeners) is required.
 
 ## 4. API & Data Handling
-- All data models coming from Firestore must have corresponding TypeScript interfaces.
+- API types are generated from the backend's OpenAPI schema into `src/lib/api.gen.ts` with `npm run gen:api`. Do not write them by hand; re-export them from `src/lib/api.ts`.
 - Handle loading states gracefully: show a clear loading state, never placeholder zeros.
 - Provide clear error boundaries and user-friendly error messages if the Gen AI chat fails to respond.
 
 ## 5. SEO & Accessibility
 - **Semantic HTML:** Use proper tags (`<header>`, `<main>`, `<section>`, `<article>`).
 - **Headings:** One `<h1>` per page.
-- **Unique IDs:** Ensure all interactive elements have unique, descriptive IDs for browser testing and accessibility.
+- **Accessible names:** Every interactive element has a role and an accessible name (visible text or `aria-label`). Browser tests select elements by role and name, as Playwright and Testing Library recommend, not by IDs added for testing.
