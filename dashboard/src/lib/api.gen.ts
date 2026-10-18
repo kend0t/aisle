@@ -304,6 +304,11 @@ export interface components {
              * @description Event IDs explicitly cited or referenced in the response
              */
             referenced_events: string[];
+            /**
+             * Tool Calls
+             * @description Counting tools Copilot called to get its numbers, in call order
+             */
+            tool_calls: string[];
             /** Timestamp */
             timestamp: string;
         };
@@ -433,6 +438,37 @@ export interface components {
              * @description Observed shopper behaviors from the fixed BehaviorTag vocabulary
              */
             behavior_tags: components["schemas"]["BehaviorTag"][];
+            /**
+             * Picked Up Item
+             * @description Whether the shopper lifted an item off the shelf
+             */
+            picked_up_item: boolean | null;
+            /**
+             * Left With Item
+             * @description Whether the shopper ends the clip holding an item
+             */
+            left_with_item: boolean | null;
+            /**
+             * Reading Count
+             * @description Number of Gemini reads combined into this record
+             */
+            reading_count: number | null;
+            /**
+             * Outcome Agreement
+             * @description Share of reads that agree with the stored outcome
+             */
+            outcome_agreement: number | null;
+            /**
+             * Needs Review
+             * @description True when the reads disagree or contradict themselves
+             * @default false
+             */
+            needs_review: boolean;
+            /**
+             * Review Reasons
+             * @description Why a person should check this clip
+             */
+            review_reasons: string[];
             /**
              * Video Uri
              * @description Google Cloud Storage URI or source video path

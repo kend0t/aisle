@@ -104,6 +104,11 @@ export default function ClipLog({
                   )}
                   <span>{zoneName(event.zone_id)}</span>
                   <span>{event.zone_dwell_time_seconds} s at shelf</span>
+                  {event.needs_review && (
+                    <span className={styles.check} title={event.review_reasons.join(". ")}>
+                      Check
+                    </span>
+                  )}
                 </div>
 
                 <p className={styles.summary}>{event.behavioral_summary}</p>
