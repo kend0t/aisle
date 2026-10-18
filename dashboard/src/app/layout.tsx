@@ -8,6 +8,8 @@ const sofiaSans = Sofia_Sans({ subsets: ["latin"], variable: "--font-text" });
 const sofiaFigures = Sofia_Sans_Extra_Condensed({ subsets: ["latin"], variable: "--font-figure" });
 
 export const metadata: Metadata = {
+  // Absolute base for the Open Graph image URL.
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
   title: "AIsle",
   description:
     "Shelf-level shopper analytics. Overhead clips read by Gemini show what shoppers pick up, put back, and why.",
