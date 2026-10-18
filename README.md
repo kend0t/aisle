@@ -112,4 +112,20 @@ Tested against overhead retail interaction footage:
 
 ---
 
+## How AIsle checks its own answers
+
+*   **Clip reading.** Gemini reads each clip three times in parallel (`READS_PER_CLIP`). The stored outcome is the majority. Each read also records two plain observations, whether an item left the shelf and whether the shopper ends the clip holding one, and the outcome must agree with them. A clip whose reads disagree or contradict themselves is flagged, and the dashboard marks it "Check".
+*   **Copilot numbers.** Copilot answers through counting tools (`count_outcomes`, `count_behaviors`, `list_clips`, `get_clip`) called with Gemini function calling, so its numbers match the dashboard. Each answer lists the counts it ran.
+
+## Evaluation
+
+1.  Label the clips: start the backend in seed mode, serve `eval/` (`uv run python -m http.server 8765 --directory eval`), open `http://localhost:8765/label.html`, and save `labels.json` into `eval/`.
+2.  `uv run python -m scripts.eval_reader --repeats 3` compares the original single prompt, one structured read, and the verified reader against the labels.
+3.  `AISLE_DATA_SOURCE=seed uv run python -m scripts.eval_copilot` checks Copilot's numbers with and without tools.
+4.  `uv run python -m scripts.generate_benchmark_report` writes `docs/benchmarks/evaluation_report.md` from those results.
+
+Steps 2 and 3 call Gemini and need credentials.
+
+---
+
 *Submitted for the Google AI Builder Cup (Retail & Commerce Track).*
