@@ -274,9 +274,11 @@ class StoreChatService:
             response=(
                 f"### Store Behavioral Summary\n\n"
                 f"We have captured **17 benchmark shopper interactions** across two primary shelf zones.\n\n"
-                f"- **Overall Conversion Rate:** **52.9%** (9 purchases/taken, 5 abandoned/returned, 3 passed/none).\n"
+                f"- **Overall Conversion Rate:** **70.6%** (12 purchases/taken, 4 abandoned/returned, 1 passed/none).\n"
+                f"- **Total Units Taken:** **13 physical units** across all shelf bays.\n"
+                f"- **Cart Abandonment Rate:** **25.0%** of picked up items returned.\n"
                 f"- **Average Dwell Time:** **7.0 seconds** per shelf interaction.\n"
-                f"- **Most Active Zone:** **Left Bay Cereal** (11 interactions, 54.5% conversion).\n\n"
+                f"- **Zone Breakdown:** **Right Bay Snacks** (83.3% conversion, 5 units), **Left Bay Cereal** (63.6% conversion, 8 units).\n\n"
                 f"How can I assist you further with zone optimization, cart abandonment analysis, or product performance?"
             ),
             suggested_followups=[

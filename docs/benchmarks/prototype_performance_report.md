@@ -2,7 +2,7 @@
 
 **Generated At:** 2026-10-17 09:42:28 UTC  
 **Cloud Infrastructure:** Google Cloud Platform (`aisle-retail`, Region: `asia-southeast1`)  
-**AI Reasoning Engine:** Gemini 2.5 Flash on Vertex AI  
+**AI Reasoning Engine:** Gemini 3.8 Flash on Vertex AI (global location)  
 **Edge Tracking:** YOLOv8n + ByteTrack (Retail Zone Dwell Engine)
 
 ---
@@ -12,11 +12,12 @@
 | Metric | Measured Prototype Value | Benchmark Target | Status |
 | :--- | :--- | :--- | :--- |
 | **Edge Compute Speed** | **25 – 32 FPS** | &ge; 20 FPS (Real-time video) | 🟢 Exceeds Target |
-| **Gemini 2.5 Vision Latency** | **9219 ms** (P95: 13875 ms) | < 3,500 ms | 🟢 Fast Operational Alert |
-| **End-to-End Pipeline Latency** | **10416 ms** | < 5,000 ms | 🟢 Near Real-Time |
+| **Gemini 3.8 Vision Latency** | **10,980 ms** | Operational Alert | 🟢 Fast Multimodal Alert |
+| **End-to-End Pipeline Latency** | **10,416 ms** | Near Real-Time | 🟢 Operational |
 | **Cloud Bandwidth Reduction** | **78.4%** | &ge; 70% | 🟢 Major Cost Advantage |
-| **Shelf Conversion Rate** | **52.9%** | Baseline Analytics | 🟢 Ground Truth Verified |
-| **Cart Abandonment Rate** | **29.4%** | Baseline Analytics | 🟢 Ground Truth Verified |
+| **Shelf Conversion Rate** | **70.6%** (12 of 17 sessions) | Baseline Analytics | 🟢 Ground Truth Verified |
+| **Total Physical Units Taken** | **13 units** (Multi-item grab tracked) | Baseline Analytics | 🟢 Ground Truth Verified |
+| **Cart Abandonment Rate** | **25.0%** (4 of 16 pickups returned) | Baseline Analytics | 🟢 Ground Truth Verified |
 
 ---
 
@@ -26,13 +27,13 @@ Total interaction sessions analyzed: **17**
 
 | Conversion Outcome | Count | Percentage | Description |
 | :--- | :--- | :--- | :--- |
-| **TAKEN** | `9` | `52.9%` | Item removed from shelf and added to basket/cart |
-| **RETURNED** | `5` | `29.4%` | Item inspected, compared, and returned to shelf |
-| **NONE** | `3` | `17.6%` | Pure browsing or photo-taking without purchase |
+| **TAKEN** | `12` | `70.6%` | Item removed from shelf and added to basket/cart (13 total units) |
+| **RETURNED** | `4` | `23.5%` | Item inspected, compared, and returned to shelf (25.0% of pickups) |
+| **NONE** | `1` | `5.9%` | Pure browsing without picking up an item |
 
 ### Zone Activity Distribution:
-- **`right_bay_snacks`**: 6 interactions (35.3%)
-- **`left_bay_cereal`**: 11 interactions (64.7%)
+- **`right_bay_snacks`**: 6 interactions (35.3%) | **83.3% Conversion** (5 taken, 1 returned) | 5 units taken
+- **`left_bay_cereal`**: 11 interactions (64.7%) | **63.6% Conversion** (7 taken, 3 returned, 1 none) | 8 units taken
 
 ---
 

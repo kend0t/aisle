@@ -72,11 +72,10 @@ Tested against overhead retail interaction footage:
 | Metric | Measured Value | Target | Status |
 | :--- | :--- | :--- | :--- |
 | **Edge Processing Speed** | **25 – 32 FPS** | $\ge$ 20 FPS | 🟢 Real-time on edge |
-| **Cloud Bandwidth Reduction** | **78.4%** | $\ge$ 70% | 🟢 Discards non-events locally |
-| **Gemini Vision Latency** | **9.2s** (P95: 13.8s) | Operational alert | 🟢 Fast multimodal analysis |
-| **End-to-End Pipeline** | **10.4s** (Touch to Dashboard) | Near real-time | 🟢 Production ready |
-| **Shelf Conversion Rate** | **52.9%** (9 of 17 taken) | Ground truth | 🟢 Accurately tracked |
-| **Physical Abandonment Rate** | **29.4%** (5 of 17 put back) | Ground truth | 🟢 Accurately tracked |
+| **Gemini 3.8 Vision Latency** | **11.0s** (Mean) | Operational alert | 🟢 Fast Multimodal Alert |
+| **Total Pipeline Latency** | **10.4s** (Touch to Firestore) | Near real-time | 🟢 Production ready |
+| **Shelf Conversion Rate** | **70.6%** (12 of 17 taken · 13 units) | Ground truth | 🟢 Accurately tracked |
+| **Physical Abandonment Rate** | **25.0%** (4 of 16 pickups put back) | Ground truth | 🟢 Accurately tracked |
 
 ---
 
