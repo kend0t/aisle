@@ -126,22 +126,24 @@ Tested against overhead retail interaction footage:
 
 Steps 2 and 3 call Gemini and need credentials.
 
-### Results (gemini-2.5-flash, 17 clips)
+### Results (17 clips, labels from a frame-by-frame review, not human)
 
-| | Before | After |
+| | gemini-2.5-flash (two runs) | gemini-3.8-flash |
 |---|---|---|
-| Copilot answers with every number right | 13 of 20 (context in prompt) | 20 of 20 (counting tools), 3.5 s instead of 6.0 s |
-| Clip outcome agreement with labels | 70% (one structured read) | 85% (three reads, majority) |
-| Clips with the same outcome on every repeat | 11 of 17 | 15 of 17 |
-| Cost per clip | $0.0015 | $0.0046 |
+| Clip outcome agreement, one read | 70%, 70% | 89% |
+| Clip outcome agreement, three reads | 85%, 67% | 89% |
+| Copilot numbers right, events in the prompt | 13 of 20, 18 of 20 | 20 of 20 |
+| Copilot numbers right, counting tools | 20 of 20, 19 of 20 | 20 of 20 |
 
-What the numbers do not show:
+What this shows:
 
-*   The labels come from a frame-by-frame review by Claude, not from people, and only 9 of the 17 clips can be called from the clip. The differences rest on a few clips.
-*   8 clips end before the shopper is done, yet every reader still answers taken or put back with confidence. Three reads flag 7 of those 24 reads; a single read flags none. An explicit "cannot tell" outcome is the next fix.
-*   The 17 clips show about 6 shoppers, cut into overlapping windows by the camera node, so counts overstate shoppers.
-*   The observation check (picked up / left with item) never caught a contradiction: Gemini keeps its own observations and outcome consistent. The disagreement between reads is what catches errors.
-*   Three reads in parallel take 14.5 s per clip against 8.2 s for one.
+*   On gemini-3.8-flash, three reads are no more accurate than one, and cost three times as much (`READS_PER_CLIP=1` turns them off). What they add is the review flag: they mark some clips a person should check (4 of 24 reads of clips that cannot be called), and a single read never flags anything.
+*   Copilot's counting tools match the dashboard on every question, and each answer lists the counts it ran. On gemini-3.8-flash the prompt-only design is equally accurate on 17 clips; the tools matter once the events no longer fit in the prompt.
+*   Results move between identical runs: three-read agreement on gemini-2.5-flash was 85% in one run and 67% in the next. Only 9 of the 17 clips can be called from the clip, so one clip changes a score by 11 points.
+*   8 clips end before the shopper is done, yet readers answer taken or put back. An explicit "cannot tell" outcome is the next fix.
+*   The 17 clips show about 6 shoppers in overlapping windows, so counts overstate shoppers.
+
+Raw results: `eval/results/` (gemini-3.8-flash) and `eval/results/gemini-2.5-flash/run1`, `run2`.
 
 ---
 

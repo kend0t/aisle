@@ -1,64 +1,65 @@
 {
-  "model": "gemini-2.5-flash",
+  "model": "gemini-3.8-flash",
   "repeats": 3,
   "clips": 17,
   "label_source": "an independent frame-by-frame review by Claude (not human labels)",
+  "cost_basis": "gemini-2.5-flash list prices (gemini-3.8-flash not listed)",
   "readers": {
     "baseline": {
-      "outcome_accuracy": 0.741,
+      "outcome_accuracy": 0.889,
       "scored_reads": 27,
       "tag_f1": 0.0,
-      "stable_clips": "10 of 17",
-      "stability": 0.588,
+      "stable_clips": "16 of 17",
+      "stability": 0.941,
       "flag_precision": null,
-      "wrong_reads_flagged": "0 of 7",
+      "wrong_reads_flagged": "0 of 3",
       "unclear_reads_flagged": "0 of 24",
       "self_contradictions": "0 of 51",
-      "mean_latency_ms": 8588,
+      "mean_latency_ms": 9009,
       "calls_per_clip": 1.0,
-      "usd_per_clip": 0.00125,
+      "usd_per_clip": 0.00061,
       "tokens": {
         "calls": 51,
-        "input_tokens": 161142,
-        "output_tokens": 6264
+        "input_tokens": 51747,
+        "output_tokens": 6241
       }
     },
     "single": {
-      "outcome_accuracy": 0.704,
+      "outcome_accuracy": 0.889,
       "scored_reads": 27,
-      "tag_f1": 0.693,
-      "stable_clips": "11 of 17",
-      "stability": 0.647,
+      "tag_f1": 0.754,
+      "stable_clips": "15 of 17",
+      "stability": 0.882,
       "flag_precision": null,
-      "wrong_reads_flagged": "0 of 8",
+      "wrong_reads_flagged": "0 of 3",
       "unclear_reads_flagged": "0 of 24",
       "self_contradictions": "0 of 51",
-      "mean_latency_ms": 8238,
+      "mean_latency_ms": 14169,
       "calls_per_clip": 1.0,
-      "usd_per_clip": 0.00152,
+      "usd_per_clip": 0.00099,
       "tokens": {
         "calls": 51,
-        "input_tokens": 186489,
-        "output_tokens": 8635
+        "input_tokens": 96066,
+        "output_tokens": 8731
       }
     },
     "verified": {
-      "outcome_accuracy": 0.852,
+      "outcome_accuracy": 0.889,
       "scored_reads": 27,
-      "tag_f1": 0.641,
-      "stable_clips": "15 of 17",
-      "stability": 0.882,
-      "flag_precision": 0.143,
-      "wrong_reads_flagged": "1 of 4",
-      "unclear_reads_flagged": "7 of 24",
+      "tag_f1": 0.635,
+      "stable_clips": "16 of 17",
+      "stability": 0.941,
+      "flag_precision": null,
+      "wrong_reads_flagged": "0 of 3",
+      "unclear_reads_flagged": "4 of 24",
       "self_contradictions": "0 of 51",
-      "mean_latency_ms": 14472,
+      "mean_latency_ms": 15337,
       "calls_per_clip": 3.0,
-      "usd_per_clip": 0.00458,
+      "usd_per_clip": 0.003,
       "tokens": {
         "calls": 153,
-        "input_tokens": 561150,
-        "output_tokens": 26130
+        "input_tokens": 289881,
+        "output_tokens": 26380
       }
     }
   },
@@ -92,12 +93,12 @@
     "evt_019fd03734": {
       "truth": "taken",
       "baseline": [
-        "returned",
+        "taken",
         "taken",
         "taken"
       ],
       "single": [
-        "returned",
+        "taken",
         "taken",
         "taken"
       ],
@@ -130,17 +131,17 @@
       "baseline": [
         "returned",
         "returned",
-        "taken"
+        "returned"
       ],
       "single": [
-        "taken",
-        "none",
-        "none"
+        "returned",
+        "returned",
+        "returned"
       ],
       "verified": [
-        "none",
         "returned",
-        "none"
+        "returned",
+        "returned"
       ]
     },
     "evt_45a2a242d7": {
@@ -152,11 +153,11 @@
       ],
       "single": [
         "taken",
-        "returned",
+        "taken",
         "taken"
       ],
       "verified": [
-        "returned",
+        "taken",
         "taken",
         "taken"
       ]
@@ -183,7 +184,7 @@
       "truth": "unclear",
       "baseline": [
         "returned",
-        "none",
+        "returned",
         "returned"
       ],
       "single": [
@@ -200,55 +201,55 @@
     "evt_795872e871": {
       "truth": "taken",
       "baseline": [
-        "returned",
-        "returned",
-        "returned"
+        "taken",
+        "taken",
+        "taken"
       ],
       "single": [
-        "returned",
-        "returned",
-        "returned"
+        "taken",
+        "taken",
+        "taken"
       ],
       "verified": [
-        "returned",
-        "returned",
-        "returned"
+        "taken",
+        "taken",
+        "taken"
       ]
     },
     "evt_83c5807a43": {
       "truth": "unclear",
       "baseline": [
         "returned",
-        "returned",
+        "none",
         "returned"
       ],
       "single": [
-        "returned",
-        "returned",
+        "taken",
+        "taken",
         "returned"
       ],
       "verified": [
-        "returned",
-        "returned",
+        "taken",
+        "taken",
         "returned"
       ]
     },
     "evt_9f04991116": {
       "truth": "unclear",
       "baseline": [
-        "taken",
-        "taken",
-        "taken"
+        "none",
+        "none",
+        "none"
       ],
       "single": [
         "taken",
-        "taken",
-        "taken"
+        "none",
+        "none"
       ],
       "verified": [
-        "taken",
-        "taken",
-        "taken"
+        "none",
+        "none",
+        "none"
       ]
     },
     "evt_a705d453d5": {
@@ -310,17 +311,17 @@
       "baseline": [
         "taken",
         "taken",
-        "returned"
+        "taken"
       ],
       "single": [
-        "returned",
         "taken",
-        "returned"
+        "taken",
+        "taken"
       ],
       "verified": [
-        "returned",
-        "returned",
-        "returned"
+        "taken",
+        "taken",
+        "taken"
       ]
     },
     "evt_dcbc52b817": {
@@ -328,17 +329,17 @@
       "baseline": [
         "none",
         "none",
-        "taken"
+        "none"
       ],
       "single": [
-        "returned",
-        "taken",
-        "taken"
+        "none",
+        "none",
+        "none"
       ],
       "verified": [
-        "taken",
-        "taken",
-        "taken"
+        "none",
+        "none",
+        "none"
       ]
     },
     "evt_e0aff00d3a": {
@@ -346,11 +347,11 @@
       "baseline": [
         "taken",
         "taken",
-        "returned"
+        "taken"
       ],
       "single": [
-        "returned",
-        "returned",
+        "taken",
+        "taken",
         "taken"
       ],
       "verified": [
@@ -364,7 +365,7 @@
       "baseline": [
         "taken",
         "taken",
-        "returned"
+        "taken"
       ],
       "single": [
         "taken",

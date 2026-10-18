@@ -1,0 +1,400 @@
+{
+  "model": "gemini-2.5-flash",
+  "repeats": 3,
+  "clips": 17,
+  "label_source": "an independent frame-by-frame review by Claude (not human labels)",
+  "cost_basis": "gemini-2.5-flash",
+  "readers": {
+    "baseline": {
+      "outcome_accuracy": 0.704,
+      "scored_reads": 27,
+      "tag_f1": 0.0,
+      "stable_clips": "13 of 17",
+      "stability": 0.765,
+      "flag_precision": null,
+      "wrong_reads_flagged": "0 of 8",
+      "unclear_reads_flagged": "0 of 24",
+      "self_contradictions": "0 of 51",
+      "mean_latency_ms": 19270,
+      "calls_per_clip": 1.0,
+      "usd_per_clip": 0.00125,
+      "tokens": {
+        "calls": 51,
+        "input_tokens": 161142,
+        "output_tokens": 6215
+      }
+    },
+    "single": {
+      "outcome_accuracy": 0.704,
+      "scored_reads": 27,
+      "tag_f1": 0.625,
+      "stable_clips": "14 of 17",
+      "stability": 0.824,
+      "flag_precision": null,
+      "wrong_reads_flagged": "0 of 8",
+      "unclear_reads_flagged": "0 of 24",
+      "self_contradictions": "0 of 51",
+      "mean_latency_ms": 13275,
+      "calls_per_clip": 1.0,
+      "usd_per_clip": 0.00171,
+      "tokens": {
+        "calls": 51,
+        "input_tokens": 192609,
+        "output_tokens": 11682
+      }
+    },
+    "verified": {
+      "outcome_accuracy": 0.667,
+      "scored_reads": 27,
+      "tag_f1": 0.674,
+      "stable_clips": "14 of 17",
+      "stability": 0.824,
+      "flag_precision": 0.714,
+      "wrong_reads_flagged": "5 of 9",
+      "unclear_reads_flagged": "5 of 24",
+      "self_contradictions": "0 of 51",
+      "mean_latency_ms": 22610,
+      "calls_per_clip": 3.0,
+      "usd_per_clip": 0.00478,
+      "tokens": {
+        "calls": 153,
+        "input_tokens": 579510,
+        "output_tokens": 27934
+      }
+    }
+  },
+  "unclear_clips": [
+    "evt_1f559628d0",
+    "evt_4ffb35f691",
+    "evt_6c0249c393",
+    "evt_83c5807a43",
+    "evt_9f04991116",
+    "evt_cfaa8c9cbf",
+    "evt_dcbc52b817",
+    "evt_ee2ca6ec17"
+  ],
+  "same_shopper_pairs": {
+    "evt_1f559628d0": "evt_145560b7c6",
+    "evt_45a2a242d7": "evt_019fd03734",
+    "evt_6c0249c393": "evt_1f559628d0",
+    "evt_795872e871": "evt_145560b7c6",
+    "evt_83c5807a43": "evt_cfaa8c9cbf",
+    "evt_a705d453d5": "evt_9f04991116",
+    "evt_cd00d81eff": "evt_9f04991116",
+    "evt_dcbc52b817": "evt_4ffb35f691",
+    "evt_ee2ca6ec17": "evt_4ffb35f691"
+  },
+  "truth_counts": {
+    "taken": 7,
+    "unclear": 8,
+    "returned": 2
+  },
+  "per_clip": {
+    "evt_019fd03734": {
+      "truth": "taken",
+      "baseline": [
+        "taken",
+        "taken",
+        "taken"
+      ],
+      "single": [
+        "returned",
+        "returned",
+        "returned"
+      ],
+      "verified": [
+        "returned",
+        "taken",
+        "returned"
+      ]
+    },
+    "evt_145560b7c6": {
+      "truth": "taken",
+      "baseline": [
+        "taken",
+        "taken",
+        "none"
+      ],
+      "single": [
+        "taken",
+        "taken",
+        "taken"
+      ],
+      "verified": [
+        "taken",
+        "taken",
+        "taken"
+      ]
+    },
+    "evt_1f559628d0": {
+      "truth": "unclear",
+      "baseline": [
+        "returned",
+        "returned",
+        "returned"
+      ],
+      "single": [
+        "none",
+        "none",
+        "none"
+      ],
+      "verified": [
+        "returned",
+        "returned",
+        "none"
+      ]
+    },
+    "evt_45a2a242d7": {
+      "truth": "taken",
+      "baseline": [
+        "taken",
+        "taken",
+        "taken"
+      ],
+      "single": [
+        "taken",
+        "taken",
+        "taken"
+      ],
+      "verified": [
+        "taken",
+        "taken",
+        "taken"
+      ]
+    },
+    "evt_4ffb35f691": {
+      "truth": "unclear",
+      "baseline": [
+        "taken",
+        "none",
+        "taken"
+      ],
+      "single": [
+        "taken",
+        "taken",
+        "taken"
+      ],
+      "verified": [
+        "taken",
+        "taken",
+        "taken"
+      ]
+    },
+    "evt_6c0249c393": {
+      "truth": "unclear",
+      "baseline": [
+        "returned",
+        "none",
+        "none"
+      ],
+      "single": [
+        "returned",
+        "taken",
+        "taken"
+      ],
+      "verified": [
+        "returned",
+        "returned",
+        "returned"
+      ]
+    },
+    "evt_795872e871": {
+      "truth": "taken",
+      "baseline": [
+        "returned",
+        "returned",
+        "returned"
+      ],
+      "single": [
+        "returned",
+        "returned",
+        "returned"
+      ],
+      "verified": [
+        "returned",
+        "returned",
+        "returned"
+      ]
+    },
+    "evt_83c5807a43": {
+      "truth": "unclear",
+      "baseline": [
+        "returned",
+        "returned",
+        "returned"
+      ],
+      "single": [
+        "returned",
+        "returned",
+        "returned"
+      ],
+      "verified": [
+        "returned",
+        "returned",
+        "returned"
+      ]
+    },
+    "evt_9f04991116": {
+      "truth": "unclear",
+      "baseline": [
+        "taken",
+        "taken",
+        "taken"
+      ],
+      "single": [
+        "error",
+        "taken",
+        "taken"
+      ],
+      "verified": [
+        "taken",
+        "taken",
+        "taken"
+      ]
+    },
+    "evt_a705d453d5": {
+      "truth": "taken",
+      "baseline": [
+        "taken",
+        "taken",
+        "none"
+      ],
+      "single": [
+        "taken",
+        "taken",
+        "taken"
+      ],
+      "verified": [
+        "taken",
+        "taken",
+        "taken"
+      ]
+    },
+    "evt_cd00d81eff": {
+      "truth": "taken",
+      "baseline": [
+        "taken",
+        "taken",
+        "taken"
+      ],
+      "single": [
+        "taken",
+        "taken",
+        "taken"
+      ],
+      "verified": [
+        "taken",
+        "taken",
+        "taken"
+      ]
+    },
+    "evt_cfaa8c9cbf": {
+      "truth": "unclear",
+      "baseline": [
+        "returned",
+        "returned",
+        "returned"
+      ],
+      "single": [
+        "returned",
+        "returned",
+        "returned"
+      ],
+      "verified": [
+        "returned",
+        "returned",
+        "returned"
+      ]
+    },
+    "evt_d8c511dc41": {
+      "truth": "returned",
+      "baseline": [
+        "taken",
+        "taken",
+        "taken"
+      ],
+      "single": [
+        "returned",
+        "returned",
+        "returned"
+      ],
+      "verified": [
+        "taken",
+        "taken",
+        "taken"
+      ]
+    },
+    "evt_dcbc52b817": {
+      "truth": "unclear",
+      "baseline": [
+        "none",
+        "none",
+        "none"
+      ],
+      "single": [
+        "taken",
+        "taken",
+        "taken"
+      ],
+      "verified": [
+        "taken",
+        "taken",
+        "taken"
+      ]
+    },
+    "evt_e0aff00d3a": {
+      "truth": "taken",
+      "baseline": [
+        "taken",
+        "taken",
+        "taken"
+      ],
+      "single": [
+        "taken",
+        "taken",
+        "taken"
+      ],
+      "verified": [
+        "taken",
+        "taken",
+        "taken"
+      ]
+    },
+    "evt_ee2ca6ec17": {
+      "truth": "unclear",
+      "baseline": [
+        "returned",
+        "returned",
+        "returned"
+      ],
+      "single": [
+        "taken",
+        "taken",
+        "taken"
+      ],
+      "verified": [
+        "taken",
+        "taken",
+        "taken"
+      ]
+    },
+    "evt_f3f6b5aa69": {
+      "truth": "returned",
+      "baseline": [
+        "returned",
+        "returned",
+        "returned"
+      ],
+      "single": [
+        "returned",
+        "taken",
+        "taken"
+      ],
+      "verified": [
+        "returned",
+        "taken",
+        "returned"
+      ]
+    }
+  }
+}

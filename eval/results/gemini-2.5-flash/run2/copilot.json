@@ -1,0 +1,445 @@
+{
+  "model": "gemini-2.5-flash",
+  "questions": 10,
+  "repeats": 2,
+  "designs": {
+    "context": {
+      "pass_rate": 0.9,
+      "passed": "18 of 20",
+      "mean_latency_ms": 4010,
+      "answers": [
+        {
+          "question": "How many shoppers stopped at the shelf, and how many of them took an item?",
+          "expected": [
+            17,
+            12
+          ],
+          "passed": true,
+          "answer": "A total of **17** shoppers stopped at the shelf. Out of these, **12** shoppers took an item, resulting in a taken rate of **70.6%**. For example, `evt_019fd03734` shows a shopper taking snacks after comparing, and `evt_d8c511dc41` shows a shopper taking two snack units.",
+          "tool_calls": []
+        },
+        {
+          "question": "How many shoppers stopped at the shelf, and how many of them took an item?",
+          "expected": [
+            17,
+            12
+          ],
+          "passed": true,
+          "answer": "A total of **17** shoppers stopped at the shelf. Out of these, **12** shoppers took an item, resulting in a taken rate of **70.6%**.",
+          "tool_calls": []
+        },
+        {
+          "question": "What is the put-back rate at the cereal bay?",
+          "expected": [
+            30.0
+          ],
+          "passed": true,
+          "answer": "The put-back rate for the Left Bay Cereal zone is **30.0%**. This is calculated from **3** items being returned out of **10** items picked up in that zone. For example, shoppers returned 'cereal bars' after inspection (`evt_1f559628d0`), 'packaged snacks' after comparing alternatives (`evt_6c0249c393`), and 'cereal' after close inspection (`evt_cfaa8c9cbf`).",
+          "tool_calls": []
+        },
+        {
+          "question": "What is the put-back rate at the cereal bay?",
+          "expected": [
+            30.0
+          ],
+          "passed": true,
+          "answer": "The put-back rate at the Left Bay Cereal zone is **30.0%** (3 items returned out of 10 picked up). Shoppers inspected labels before returning items in events like **evt_1f559628d0** and **evt_cfaa8c9cbf**, and compared alternatives in **evt_6c0249c393**.",
+          "tool_calls": []
+        },
+        {
+          "question": "What is the taken rate at the snack bay?",
+          "expected": [
+            83.3
+          ],
+          "passed": true,
+          "answer": "The taken rate for the 'right_bay_snacks' zone is **83.3%** across **6 interactions**. This zone saw **5 items taken** and **1 item returned**, with an average dwell time of **6.2 seconds**.",
+          "tool_calls": []
+        },
+        {
+          "question": "What is the taken rate at the snack bay?",
+          "expected": [
+            83.3
+          ],
+          "passed": true,
+          "answer": "The 'right_bay_snacks' zone has a taken rate of **83.3%** across **6 interactions**, with an average dwell time of **6.2 seconds**. For example, in `evt_019fd03734`, a shopper compared items and took a snack pack.",
+          "tool_calls": []
+        },
+        {
+          "question": "How many shoppers put an item back at the cereal bay?",
+          "expected": [
+            3
+          ],
+          "passed": true,
+          "answer": "In the Left Bay Cereal zone, **3** shoppers put an item back. These interactions include a shopper inspecting and returning 'cereal bars' (`evt_1f559628d0`), another comparing and returning two 'packaged snacks' (`evt_6c0249c393`), and a third inspecting and returning 'cereal' (`evt_cfaa8c9cbf`).",
+          "tool_calls": []
+        },
+        {
+          "question": "How many shoppers put an item back at the cereal bay?",
+          "expected": [
+            3
+          ],
+          "passed": true,
+          "answer": "In the Left Bay Cereal zone, **3 shoppers** put an item back. These interactions include a shopper inspecting and returning 'cereal bars' (`evt_1f559628d0`), another comparing and returning two 'packaged snacks' (`evt_6c0249c393`), and a third inspecting and returning 'cereal' (`evt_cfaa8c9cbf`).",
+          "tool_calls": []
+        },
+        {
+          "question": "How many shoppers never picked anything up?",
+          "expected": [
+            1
+          ],
+          "passed": true,
+          "answer": "Only **1** shopper never picked anything up. This shopper browsed the Left Bay Cereal zone but did not take any items, as seen in `evt_dcbc52b817`.",
+          "tool_calls": []
+        },
+        {
+          "question": "How many shoppers never picked anything up?",
+          "expected": [
+            1
+          ],
+          "passed": true,
+          "answer": "Only **1** shopper never picked up an item. This shopper browsed the `left_bay_cereal` zone for **8 seconds** but did not select any products, as seen in `evt_dcbc52b817`.",
+          "tool_calls": []
+        },
+        {
+          "question": "Compare the put-back rate of the cereal bay and the snack bay.",
+          "expected": [
+            30.0,
+            16.7
+          ],
+          "passed": true,
+          "answer": "The 'left_bay_cereal' zone has a higher put-back rate of **30.0%** (3 items returned out of 10 picked up), compared to the 'right_bay_snacks' zone's **16.7%** (1 item returned out of 6 picked up). Shoppers in the cereal bay often inspected labels before returning items, as seen in `evt_1f559628d0` and `evt_cfaa8c9cbf`.",
+          "tool_calls": []
+        },
+        {
+          "question": "Compare the put-back rate of the cereal bay and the snack bay.",
+          "expected": [
+            30.0,
+            16.7
+          ],
+          "passed": true,
+          "answer": "The 'left_bay_cereal' zone has a higher put-back rate of **30.0%** (3 items returned out of 10 picked up), compared to the 'right_bay_snacks' zone's **16.7%** (1 item returned out of 6 picked up). Shoppers in the cereal bay often inspected labels before putting items back, as seen in `evt_1f559628d0` and `evt_cfaa8c9cbf`.",
+          "tool_calls": []
+        },
+        {
+          "question": "How many shoppers who picked something up at the snack bay took it?",
+          "expected": [
+            5
+          ],
+          "passed": true,
+          "answer": "In the Right Bay Snacks zone, **5** shoppers picked up an item and took it. This is reflected in events like a shopper inspecting and taking a snack pack (`evt_019fd03734`) and another taking a snack bar after inspection (`evt_795872e871`).",
+          "tool_calls": []
+        },
+        {
+          "question": "How many shoppers who picked something up at the snack bay took it?",
+          "expected": [
+            5
+          ],
+          "passed": true,
+          "answer": "In the Right Bay Snacks zone, **5** shoppers picked up an item and took it. This includes interactions like a shopper comparing items before taking one (`evt_019fd03734`) and another inspecting a snack bar before taking it (`evt_795872e871`).",
+          "tool_calls": []
+        },
+        {
+          "question": "Of all shoppers who picked up an item, what share put it back?",
+          "expected": [
+            25.0
+          ],
+          "passed": true,
+          "answer": "Of all shoppers who picked up an item, **25.0%** put it back. This means **4** items were returned out of **16** items picked up across the store. For instance, in event `evt_f3f6b5aa69`, a shopper inspected a snack and then placed it back.",
+          "tool_calls": []
+        },
+        {
+          "question": "Of all shoppers who picked up an item, what share put it back?",
+          "expected": [
+            25.0
+          ],
+          "passed": true,
+          "answer": "Of all shoppers who picked up an item, **25.0%** put it back. This is based on **4** items being returned out of **16** items picked up, as seen in events like `evt_1f559628d0` and `evt_f3f6b5aa69` where shoppers inspected items before returning them.",
+          "tool_calls": []
+        },
+        {
+          "question": "How many shoppers picked up an item at the cereal bay?",
+          "expected": [
+            10
+          ],
+          "passed": false,
+          "answer": "In the Left Bay Cereal zone, **7** shoppers picked up an item, contributing to a **63.6%** taken rate for that zone. These include interactions like a shopper taking a packaged snack after inspection (`evt_145560b7c6`) and another selecting a beverage from a lower shelf (`evt_83c5807a43`).",
+          "tool_calls": []
+        },
+        {
+          "question": "How many shoppers picked up an item at the cereal bay?",
+          "expected": [
+            10
+          ],
+          "passed": false,
+          "answer": "Seven shoppers picked up an item at the Left Bay Cereal zone. These interactions resulted in a taken rate of **63.6%** for that zone, with items taken in events like **evt_145560b7c6** and **evt_83c5807a43**.",
+          "tool_calls": []
+        },
+        {
+          "question": "How many shoppers stopped at the snack bay?",
+          "expected": [
+            6
+          ],
+          "passed": true,
+          "answer": "A total of **6 shoppers** stopped at the Right Bay Snacks zone, as indicated by the **6 interactions** recorded for this zone. For example, one shopper compared items and inspected labels (evt_019fd03734), while another hesitated before returning an item (evt_f3f6b5aa69).",
+          "tool_calls": []
+        },
+        {
+          "question": "How many shoppers stopped at the snack bay?",
+          "expected": [
+            6
+          ],
+          "passed": true,
+          "answer": "A total of **6 shoppers** interacted with the Right Bay Snacks zone, as indicated by the **6 interactions** recorded for that area. The taken rate for this zone was **83.3%**.",
+          "tool_calls": []
+        }
+      ]
+    },
+    "tools": {
+      "pass_rate": 0.95,
+      "passed": "19 of 20",
+      "mean_latency_ms": 6274,
+      "answers": [
+        {
+          "question": "How many shoppers stopped at the shelf, and how many of them took an item?",
+          "expected": [
+            17,
+            12
+          ],
+          "passed": true,
+          "answer": "17 shoppers stopped at the shelf, and 12 of them took an item.",
+          "tool_calls": [
+            "count_outcomes()",
+            "count_outcomes(outcome='taken')"
+          ]
+        },
+        {
+          "question": "How many shoppers stopped at the shelf, and how many of them took an item?",
+          "expected": [
+            17,
+            12
+          ],
+          "passed": true,
+          "answer": "17 shoppers stopped at the shelf, and 12 of them took an item.",
+          "tool_calls": [
+            "count_outcomes()",
+            "count_outcomes(outcome='taken')"
+          ]
+        },
+        {
+          "question": "What is the put-back rate at the cereal bay?",
+          "expected": [
+            30.0
+          ],
+          "passed": true,
+          "answer": "At the cereal bay, the put-back rate is 30% (3 out of 10 shoppers who picked up an item put it back). This is based on a small sample of 3 shoppers who put items back.",
+          "tool_calls": [
+            "count_outcomes(zone_id='left_bay_cereal', outcome='returned')",
+            "count_outcomes(zone_id='left_bay_cereal', outcome='taken')"
+          ]
+        },
+        {
+          "question": "What is the put-back rate at the cereal bay?",
+          "expected": [
+            30.0
+          ],
+          "passed": true,
+          "answer": "At the cereal bay, the put-back rate is 30% (3 out of 10 shoppers who picked up an item put it back). This is based on a small sample of 3 shoppers who put items back.",
+          "tool_calls": [
+            "count_outcomes(outcome='returned', zone_id='left_bay_cereal')",
+            "count_outcomes(zone_id='left_bay_cereal', outcome='taken')"
+          ]
+        },
+        {
+          "question": "What is the taken rate at the snack bay?",
+          "expected": [
+            83.3
+          ],
+          "passed": true,
+          "answer": "The taken rate at the snack bay is 83.3%. This is based on 5 shoppers who took an item out of 6 shoppers who picked up an item.",
+          "tool_calls": [
+            "count_outcomes(outcome='taken', zone_id='right_bay_snacks')",
+            "count_outcomes(zone_id='right_bay_snacks', outcome='returned')",
+            "count_outcomes(outcome='none', zone_id='right_bay_snacks')"
+          ]
+        },
+        {
+          "question": "What is the taken rate at the snack bay?",
+          "expected": [
+            83.3
+          ],
+          "passed": true,
+          "answer": "The taken rate at the snack bay is 83.3%. This means 5 out of 6 items picked up were taken.",
+          "tool_calls": [
+            "count_outcomes(zone_id='right_bay_snacks')"
+          ]
+        },
+        {
+          "question": "How many shoppers put an item back at the cereal bay?",
+          "expected": [
+            3
+          ],
+          "passed": true,
+          "answer": "3 shoppers put an item back at the cereal bay. This represents a 100% put-back rate among shoppers who picked up an item.",
+          "tool_calls": [
+            "count_outcomes(zone_id='left_bay_cereal', outcome='returned')"
+          ]
+        },
+        {
+          "question": "How many shoppers put an item back at the cereal bay?",
+          "expected": [
+            3
+          ],
+          "passed": true,
+          "answer": "At the cereal bay, 3 shoppers put an item back. This represents a 100% put-back rate among those who picked up an item.",
+          "tool_calls": [
+            "count_outcomes(outcome='returned', zone_id='left_bay_cereal')"
+          ]
+        },
+        {
+          "question": "How many shoppers never picked anything up?",
+          "expected": [
+            1
+          ],
+          "passed": true,
+          "answer": "1 shopper did not pick up any item.",
+          "tool_calls": [
+            "count_outcomes(outcome='none')"
+          ]
+        },
+        {
+          "question": "How many shoppers never picked anything up?",
+          "expected": [
+            1
+          ],
+          "passed": true,
+          "answer": "1 shopper did not pick up any item.",
+          "tool_calls": [
+            "count_outcomes(outcome='none')"
+          ]
+        },
+        {
+          "question": "Compare the put-back rate of the cereal bay and the snack bay.",
+          "expected": [
+            30.0,
+            16.7
+          ],
+          "passed": true,
+          "answer": "The cereal bay has a put-back rate of 30% (3 out of 10 shoppers who picked up an item), while the snack bay has a put-back rate of 17% (1 out of 6 shoppers who picked up an item). Both rates are based on small samples of shoppers who put items back.",
+          "tool_calls": [
+            "count_outcomes(zone_id='left_bay_cereal', outcome='returned')",
+            "count_outcomes(zone_id='left_bay_cereal', outcome='taken')",
+            "count_outcomes(zone_id='right_bay_snacks', outcome='returned')",
+            "count_outcomes(zone_id='right_bay_snacks', outcome='taken')"
+          ]
+        },
+        {
+          "question": "Compare the put-back rate of the cereal bay and the snack bay.",
+          "expected": [
+            30.0,
+            16.7
+          ],
+          "passed": true,
+          "answer": "The put-back rate for the cereal bay is **30%** (**3** put back out of **10** picked up), while for the snack bay it is **16.7%** (**1** put back out of **6** picked up). The sample sizes for put-backs are small for both bays.",
+          "tool_calls": [
+            "count_outcomes(outcome='returned', zone_id='left_bay_cereal')",
+            "count_outcomes(outcome='taken', zone_id='left_bay_cereal')",
+            "count_outcomes(outcome='returned', zone_id='right_bay_snacks')",
+            "count_outcomes(outcome='taken', zone_id='right_bay_snacks')"
+          ]
+        },
+        {
+          "question": "How many shoppers who picked something up at the snack bay took it?",
+          "expected": [
+            5
+          ],
+          "passed": true,
+          "answer": "At the snack bay, 5 shoppers who picked something up took the item. This is a taken rate of 83% out of 6 shoppers who picked something up.",
+          "tool_calls": [
+            "count_outcomes(outcome='taken', zone_id='right_bay_snacks')",
+            "count_outcomes(outcome='returned', zone_id='right_bay_snacks')"
+          ]
+        },
+        {
+          "question": "How many shoppers who picked something up at the snack bay took it?",
+          "expected": [
+            5
+          ],
+          "passed": true,
+          "answer": "At the snack bay, **5** shoppers who picked something up took the item, representing a taken rate of **83.3%** of the **6** shoppers who picked something up. This number rests on fewer than **5** clips.",
+          "tool_calls": [
+            "count_outcomes(zone_id='right_bay_snacks')"
+          ]
+        },
+        {
+          "question": "Of all shoppers who picked up an item, what share put it back?",
+          "expected": [
+            25.0
+          ],
+          "passed": true,
+          "answer": "Of all shoppers who picked up an item, 25% put it back (4 out of 16 shoppers).",
+          "tool_calls": [
+            "count_outcomes(outcome='taken')",
+            "count_outcomes(outcome='returned')"
+          ]
+        },
+        {
+          "question": "Of all shoppers who picked up an item, what share put it back?",
+          "expected": [
+            25.0
+          ],
+          "passed": true,
+          "answer": "Of the 16 shoppers who picked up an item, 4 put it back. This means the put-back rate is 25%.",
+          "tool_calls": [
+            "count_outcomes(outcome='returned')",
+            "count_outcomes(outcome='taken')"
+          ]
+        },
+        {
+          "question": "How many shoppers picked up an item at the cereal bay?",
+          "expected": [
+            10
+          ],
+          "passed": true,
+          "answer": "10 shoppers picked up an item at the cereal bay. 7 of them took the item, and 3 put it back.",
+          "tool_calls": [
+            "count_outcomes(outcome='taken', zone_id='left_bay_cereal')",
+            "count_outcomes(outcome='returned', zone_id='left_bay_cereal')"
+          ]
+        },
+        {
+          "question": "How many shoppers picked up an item at the cereal bay?",
+          "expected": [
+            10
+          ],
+          "passed": false,
+          "answer": "7 shoppers picked up an item at the cereal bay.",
+          "tool_calls": [
+            "count_outcomes(zone_id='left_bay_cereal', outcome='taken')"
+          ]
+        },
+        {
+          "question": "How many shoppers stopped at the snack bay?",
+          "expected": [
+            6
+          ],
+          "passed": true,
+          "answer": "6 shoppers stopped at the snack bay.",
+          "tool_calls": [
+            "count_outcomes(zone_id='right_bay_snacks')"
+          ]
+        },
+        {
+          "question": "How many shoppers stopped at the snack bay?",
+          "expected": [
+            6
+          ],
+          "passed": true,
+          "answer": "6 shoppers stopped at the snack bay. Of those, 5 took an item (83.3% taken rate) and 1 put an item back (16.7% put-back rate).",
+          "tool_calls": [
+            "count_outcomes(zone_id='right_bay_snacks')"
+          ]
+        }
+      ]
+    }
+  }
+}
