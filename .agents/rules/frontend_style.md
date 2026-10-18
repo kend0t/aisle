@@ -32,6 +32,7 @@ Both themes follow `prefers-color-scheme`. Add new colors as tokens in both them
 - Files: `src/app/icon.svg`, `src/app/favicon.ico` (16 and 32 px), `src/app/apple-icon.tsx`, `src/app/opengraph-image.tsx`. Keep their geometry in step.
 - In the UI, the brand is the `Wordmark` component: text with the I drawn as a yellow bar, sized to the I of Sofia Sans. Screen readers get "AIsle". There is no separate icon in the header.
 - The Open Graph image uses static Sofia Sans files in `src/app/_brand/`, because its renderer takes no variable fonts.
+- The Open Graph image shows the wordmark and tagline on the left and the mark on the right, over the same faint floor grid as the funnel. `NEXT_PUBLIC_SITE_URL` sets the absolute origin of its URL; on Vercel, leave it empty.
 
 ### Type
 - One superfamily, loaded with `next/font/google`: **Sofia Sans** for text (`--font-text`) and **Sofia Sans Extra Condensed** for figures (`--font-figure`). Both are variable in weight.
