@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AIsle clip labels</title>
+<style>
+  :root { --ink: #1c2330; --ink-2: #47505e; --line: #d3d7db; --panel: #f0f2f3; --tag: #f2c230; --bg: #fafbfb; }
+  body { margin: 0; font: 15px/1.45 system-ui, sans-serif; color: var(--ink); background: var(--bg); }
+  header { position: sticky; top: 0; background: var(--bg); border-bottom: 1px solid var(--line); padding: 12px 16px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; z-index: 1; }
+  header h1 { font-size: 18px; margin: 0; margin-right: auto; }
+  main { max-width: 1100px; margin: 0 auto; padding: 16px; display: grid; gap: 20px; }
+  .clip { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(260px, 1fr); gap: 16px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+  .clip.done h2::after { content: " - labeled"; color: var(--ink-2); font-weight: 400; }
+  video { width: 100%; border-radius: 6px; background: #000; }
+  h2 { font-size: 15px; margin: 0 0 8px; }
+  fieldset { border: 0; padding: 0; margin: 0 0 12px; }
+  legend { font-weight: 600; margin-bottom: 4px; }
+  label { display: inline-flex; gap: 6px; align-items: center; margin: 0 12px 6px 0; }
+  select, textarea { font: inherit; width: 100%; box-sizing: border-box; }
+  textarea { min-height: 48px; }
+  button { font: inherit; padding: 6px 14px; border-radius: 6px; border: 1px solid var(--ink); background: var(--ink); color: var(--bg); cursor: pointer; }
+  .hint { color: var(--ink-2); font-size: 13px; }
+  @media (max-width: 760px) { .clip { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Clip labels</h1>
+  <span class="hint" id="progress"></span>
+  <button type="button" id="download">Download labels.json</button>
+</header>
+<main id="clips"><p class="hint">Loading clips from the backend at http://localhost:8000 ...</p></main>
+<script>
+/*
+  Ground-truth labeling for the AIsle evaluation. Watch each clip and record what
+  the shopper actually did. Gemini's answers are deliberately not shown.
+  Progress is kept in this browser; "Download labels.json" writes the file for eval/.
+*/
+const API = new URLSearchParams(location.search).get("api") || "http://localhost:8000/api/v1";
+const STORE = "aisle.labels.v1";
+const TAGS = {
+  phone_check: "Checked phone",
+  compared_alternatives: "Compared items",
+  low_shelf_reach: "Reached low shelf (bent or crouched)",
+  label_inspection: "Read label",
+  carried_basket: "Had basket or cart",
+  hesitated: "Hesitated with item in hand",
+};
+const OUTCOMES = {
+  taken: "Taken: leaves the clip with an item",
+  returned: "Put back: picked up, left without it",
+  none: "No pick-up",
+  unclear: "Cannot tell from this clip",
+};
+
+let labels = {};
+try { labels = JSON.parse(localStorage.getItem(STORE) || "{}"); } catch { labels = {}; }
+const save = () => { try { localStorage.setItem(STORE, JSON.stringify(labels)); } catch {} render(); };
+
+let ids = [];
+function render() {
+  const done = ids.filter((id) => labels[id]?.outcome).length;
+  document.getElementById("progress").textContent = `${done} of ${ids.length} labeled`;
+  for (const id of ids) document.getElementById(id)?.classList.toggle("done", Boolean(labels[id]?.outcome));
+}
+
+function clipCard(id, others) {
+  const l = labels[id] || (labels[id] = { outcome: "", behavior_tags: [], same_shopper_as: "", note: "" });
+  const el = document.createElement("section");
+  el.className = "clip";
+  el.id = id;
+  el.innerHTML = `
+    <video controls preload="metadata" src="${API}/events/${id}/stream"></video>
+    <div>
+      <h2>${id}</h2>
+      <fieldset><legend>Outcome at the end of the clip</legend>
+        ${Object.entries(OUTCOMES).map(([v, t]) =>
+          `<label><input type="radio" name="o-${id}" value="${v}" ${l.outcome === v ? "checked" : ""}> ${t}</label><br>`).join("")}
+      </fieldset>
+      <fieldset><legend>Behaviors clearly visible</legend>
+        ${Object.entries(TAGS).map(([v, t]) =>
+          `<label><input type="checkbox" value="${v}" ${l.behavior_tags.includes(v) ? "checked" : ""}> ${t}</label>`).join("")}
+      </fieldset>
+      <fieldset><legend>Same shopper and moment as another clip?</legend>
+        <select><option value="">No</option>${others.map((o) => `<option ${l.same_shopper_as === o ? "selected" : ""}>${o}</option>`).join("")}</select>
+      </fieldset>
+      <fieldset><legend>Note</legend><textarea placeholder="Optional">${l.note}</textarea></fieldset>
+    </div>`;
+  el.querySelectorAll(`input[name="o-${id}"]`).forEach((r) => r.addEventListener("change", () => { l.outcome = r.value; save(); }));
+  el.querySelectorAll('input[type="checkbox"]').forEach((c) => c.addEventListener("change", () => {
+    l.behavior_tags = [...el.querySelectorAll('input[type="checkbox"]:checked')].map((x) => x.value); save();
+  }));
+  el.querySelector("select").addEventListener("change", (e) => { l.same_shopper_as = e.target.value; save(); });
+  el.querySelector("textarea").addEventListener("input", (e) => { l.note = e.target.value; save(); });
+  return el;
+}
+
+document.getElementById("download").addEventListener("click", () => {
+  const out = { labeled_by: "human", labeled_at: new Date().toISOString(), clips: {} };
+  for (const id of ids) if (labels[id]?.outcome) out.clips[id] = labels[id];
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(out, null, 2) + "\n"], { type: "application/json" }));
+  a.download = "labels.json";
+  a.click();
+});
+
+fetch(`${API}/events?limit=500`)
+  .then((r) => r.json())
+  .then((events) => {
+    ids = events.map((e) => e.event_id).sort();
+    const main = document.getElementById("clips");
+    main.replaceChildren(...ids.map((id) => clipCard(id, ids.filter((o) => o !== id))));
+    render();
+  })
+  .catch(() => {
+    document.getElementById("clips").innerHTML =
+      '<p>Backend not reachable. Start it with <code>AISLE_DATA_SOURCE=seed uv run uvicorn backend_service.main:app --port 8000</code>.</p>';
+  });
+</script>
+</body>
+</html>

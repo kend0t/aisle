@@ -1,5 +1,6 @@
 import logging
 import os
+import threading
 from typing import Any, Callable, Dict, List, Tuple, Type, TypeVar
 
 from pydantic import BaseModel
@@ -26,6 +27,9 @@ class GeminiClient:
         self.model = settings.GEMINI_MODEL
         self.mode = "unavailable"
         self._client = None
+        # Token totals across calls, for cost reporting in the evaluation scripts.
+        self.usage = {"calls": 0, "input_tokens": 0, "output_tokens": 0}
+        self._usage_lock = threading.Lock()
 
         if settings.GOOGLE_APPLICATION_CREDENTIALS:
             os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = settings.GOOGLE_APPLICATION_CREDENTIALS
@@ -55,6 +59,13 @@ class GeminiClient:
     def available(self) -> bool:
         return self._client is not None
 
+    def _count(self, response: Any) -> None:
+        meta = getattr(response, "usage_metadata", None)
+        with self._usage_lock:
+            self.usage["calls"] += 1
+            self.usage["input_tokens"] += getattr(meta, "prompt_token_count", 0) or 0
+            self.usage["output_tokens"] += getattr(meta, "candidates_token_count", 0) or 0
+
     def generate(self, *, system: str, contents: List[Any], schema: Type[T], temperature: float) -> T:
         """Runs one call whose JSON output Gemini must shape to `schema`."""
         if self._client is None:
@@ -73,6 +84,7 @@ class GeminiClient:
                     response_schema=schema,
                 ),
             )
+            self._count(response)
             if isinstance(response.parsed, schema):
                 return response.parsed
             return schema.model_validate_json(response.text or "")
@@ -118,6 +130,7 @@ class GeminiClient:
                 response = self._client.models.generate_content(
                     model=self.model, contents=history, config=config
                 )
+                self._count(response)
                 calls = response.function_calls or []
                 if not calls:
                     return response.text or "", trace

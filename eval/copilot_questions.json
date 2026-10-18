@@ -1,0 +1,48 @@
+[
+  {
+    "question": "How many shoppers stopped at the shelf, and how many of them took an item?",
+    "expect": [
+      {"tool": "count_outcomes", "args": {}, "key": "stopped"},
+      {"tool": "count_outcomes", "args": {}, "key": "taken"}
+    ]
+  },
+  {
+    "question": "What is the put-back rate at the cereal bay?",
+    "expect": [{"tool": "count_outcomes", "args": {"zone_id": "left_bay_cereal"}, "key": "put_back_pct_of_picked_up"}]
+  },
+  {
+    "question": "What is the taken rate at the snack bay?",
+    "expect": [{"tool": "count_outcomes", "args": {"zone_id": "right_bay_snacks"}, "key": "taken_pct_of_picked_up"}]
+  },
+  {
+    "question": "How many shoppers put an item back at the cereal bay?",
+    "expect": [{"tool": "count_outcomes", "args": {"zone_id": "left_bay_cereal"}, "key": "put_back"}]
+  },
+  {
+    "question": "How many shoppers never picked anything up?",
+    "expect": [{"tool": "count_outcomes", "args": {}, "key": "no_pickup"}]
+  },
+  {
+    "question": "Compare the put-back rate of the cereal bay and the snack bay.",
+    "expect": [
+      {"tool": "count_outcomes", "args": {"zone_id": "left_bay_cereal"}, "key": "put_back_pct_of_picked_up"},
+      {"tool": "count_outcomes", "args": {"zone_id": "right_bay_snacks"}, "key": "put_back_pct_of_picked_up"}
+    ]
+  },
+  {
+    "question": "How many shoppers who picked something up at the snack bay took it?",
+    "expect": [{"tool": "count_outcomes", "args": {"zone_id": "right_bay_snacks"}, "key": "taken"}]
+  },
+  {
+    "question": "Of all shoppers who picked up an item, what share put it back?",
+    "expect": [{"tool": "count_outcomes", "args": {}, "key": "put_back_pct_of_picked_up"}]
+  },
+  {
+    "question": "How many shoppers picked up an item at the cereal bay?",
+    "expect": [{"tool": "count_outcomes", "args": {"zone_id": "left_bay_cereal"}, "key": "picked_up"}]
+  },
+  {
+    "question": "How many shoppers stopped at the snack bay?",
+    "expect": [{"tool": "count_outcomes", "args": {"zone_id": "right_bay_snacks"}, "key": "stopped"}]
+  }
+]
