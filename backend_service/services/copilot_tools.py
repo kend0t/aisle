@@ -37,10 +37,12 @@ def outcome_counts(events: List[InteractionEvent]) -> Dict[str, Any]:
     taken = sum(e.conversion_outcome.value == "taken" for e in events)
     put_back = sum(e.conversion_outcome.value == "returned" for e in events)
     picked_up = taken + put_back
+    units = sum(max(1, e.items_taken_count) for e in events if e.conversion_outcome.value == "taken")
     return {
         "stopped": len(events),
         "picked_up": picked_up,
         "taken": taken,
+        "units_taken": units,
         "put_back": put_back,
         "no_pickup": len(events) - picked_up,
         "taken_pct_of_picked_up": _percent(taken, picked_up),

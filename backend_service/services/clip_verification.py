@@ -62,6 +62,7 @@ def combine(reads: List[ClipAnalysis]) -> Consensus:
         update={
             "behavior_tags": tags,
             "zone_dwell_time_seconds": int(median(r.zone_dwell_time_seconds for r in reads)),
+            "items_taken_count": int(median(r.items_taken_count for r in reads if r.conversion_outcome == outcome)),
         }
     )
 

@@ -407,10 +407,10 @@ export interface components {
             conversion_outcome: components["schemas"]["ConversionOutcome"];
             /**
              * Items Taken Count
-             * @description Exact count of physical product items taken/purchased
+             * @description Exact count of physical product items taken/purchased (0 if returned or none, 1 or more if taken)
              * @default 0
              */
-            items_taken_count?: number;
+            items_taken_count: number;
             /**
              * Product Category Engaged
              * @description Shelf section or product description engaged with

@@ -55,15 +55,16 @@ def test_tool_counts_match_the_dashboard_funnel():
     tools = CopilotTools(build_repository(get_settings()))
     assert tools.count_outcomes() == {
         "stopped": 17,
-        "picked_up": 14,
-        "taken": 9,
-        "put_back": 5,
-        "no_pickup": 3,
-        "taken_pct_of_picked_up": 64.3,
-        "put_back_pct_of_picked_up": 35.7,
+        "picked_up": 16,
+        "taken": 12,
+        "units_taken": 13,
+        "put_back": 4,
+        "no_pickup": 1,
+        "taken_pct_of_picked_up": 75.0,
+        "put_back_pct_of_picked_up": 25.0,
     }
     cereal = tools.count_outcomes(zone_id="left_bay_cereal")
-    assert (cereal["stopped"], cereal["taken"], cereal["put_back"]) == (11, 6, 3)
+    assert (cereal["stopped"], cereal["taken"], cereal["put_back"]) == (11, 7, 3)
     assert tools.get_clip("evt_missing") == {"error": "No clip evt_missing"}
 
 
@@ -84,7 +85,7 @@ class FakeGemini:
 def test_chat_returns_the_tool_trace_and_keeps_only_known_citations():
     repo = build_repository(get_settings())
     answer = (
-        '```json\n{"response": "**3 of 9** put back (33.3%), e.g. evt_1f559628d0 and evt_nope.", '
+        '```json\n{"response": "**3 of 10** put back (30.0%), e.g. evt_1f559628d0 and evt_nope.", '
         '"suggested_followups": ["Why?"], "referenced_events": ["evt_1f559628d0"]}\n```'
     )
     chat = StoreChatService(repo, FakeGemini(answer))

@@ -31,9 +31,10 @@ from backend_service.services.storage_service import StorageService
 CLIP_DIR = Path("temp_uploads/clip_cache")
 RESULTS_DIR = Path("eval/results")
 
-# Vertex AI list prices for gemini-2.5-flash, USD per million tokens (video counts as input).
-PRICE_INPUT = 0.30
-PRICE_OUTPUT = 2.50
+# Vertex AI list prices, USD per million tokens (video counts as input). Models not listed
+# are costed at gemini-2.5-flash prices, and the report says so.
+PRICES = {"gemini-2.5-flash": (0.30, 2.50)}
+PRICE_FALLBACK = "gemini-2.5-flash"
 
 # The analyzer prompt as first committed (8cbe15e), before schemas and tags.
 BASELINE_PROMPT = """You are an expert AI retail behavioral analyst for in-store physical retail analytics.
@@ -217,6 +218,7 @@ def main() -> int:
         "repeats": args.repeats,
         "clips": len(clip_ids),
         "label_source": LABEL_SOURCES[label_source],
+        "cost_basis": gemini.model if gemini.model in PRICES else f"{PRICE_FALLBACK} list prices ({gemini.model} not listed)",
         "readers": {},
     }
     per_clip: Dict[str, Dict[str, List[str]]] = {cid: {} for cid in clip_ids}
@@ -237,7 +239,8 @@ def main() -> int:
             per_clip[cid][name] = [r["outcome"] for r in runs[cid]]
             print(f"{name:9} {cid} truth={labels[cid]['outcome']:9} got={per_clip[cid][name]}", flush=True)
         used = {k: gemini.usage[k] - usage_before[k] for k in gemini.usage}
-        cost = used["input_tokens"] / 1e6 * PRICE_INPUT + used["output_tokens"] / 1e6 * PRICE_OUTPUT
+        price_in, price_out = PRICES.get(gemini.model, PRICES[PRICE_FALLBACK])
+        cost = used["input_tokens"] / 1e6 * price_in + used["output_tokens"] / 1e6 * price_out
         reads = len(clip_ids) * args.repeats
         report["readers"][name] = {**score(runs, labels), "usd_per_clip": round(cost / reads, 5), "tokens": used}
 
@@ -268,7 +271,7 @@ def markdown(report: Dict[str, Any]) -> str:
         ("Outcome contradicts own observations", "self_contradictions"),
         ("Gemini calls per clip", "calls_per_clip"),
         ("Mean latency (ms)", "mean_latency_ms"),
-        ("Cost per clip (USD)", "usd_per_clip"),
+        (f"Cost per clip (USD, {report['cost_basis']})", "usd_per_clip"),
     ]
     names = list(report["readers"])
     lines = [

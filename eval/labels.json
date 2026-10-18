@@ -1,6 +1,6 @@
 {
   "labeled_by": "claude-frames",
-  "method": "Independent review of frame sheets (whole clip at 1.1 fps, last 5 s at 2.4 fps), without Gemini's answers. Not a human label set.",
+  "method": "Independent review of frame sheets (whole clip at 1.1 fps, last 5 s at 2.4 fps), without Gemini's answers. Not a human label set. phone_check is not scored because it is no longer a tag; a phone is visible in evt_145560b7c6, evt_1f559628d0, evt_6c0249c393, evt_cfaa8c9cbf, evt_f3f6b5aa69.",
   "clips": {
     "evt_019fd03734": {
       "outcome": "taken",
@@ -23,7 +23,6 @@
     "evt_145560b7c6": {
       "outcome": "taken",
       "behavior_tags": [
-        "phone_check",
         "compared_alternatives"
       ],
       "same_shopper_as": "",
@@ -31,9 +30,7 @@
     },
     "evt_1f559628d0": {
       "outcome": "unclear",
-      "behavior_tags": [
-        "phone_check"
-      ],
+      "behavior_tags": [],
       "same_shopper_as": "evt_145560b7c6",
       "note": "Ends mid-reach at the snack shelf."
     },
@@ -47,9 +44,7 @@
     },
     "evt_6c0249c393": {
       "outcome": "unclear",
-      "behavior_tags": [
-        "phone_check"
-      ],
+      "behavior_tags": [],
       "same_shopper_as": "evt_1f559628d0",
       "note": "Ends reaching to the cereal shelf."
     },
@@ -94,9 +89,7 @@
     },
     "evt_cfaa8c9cbf": {
       "outcome": "unclear",
-      "behavior_tags": [
-        "phone_check"
-      ],
+      "behavior_tags": [],
       "same_shopper_as": "",
       "note": "Handles an item at the low cereal shelf; walks off, item not visible."
     },
@@ -135,7 +128,6 @@
     "evt_f3f6b5aa69": {
       "outcome": "returned",
       "behavior_tags": [
-        "phone_check",
         "label_inspection"
       ],
       "same_shopper_as": "",
