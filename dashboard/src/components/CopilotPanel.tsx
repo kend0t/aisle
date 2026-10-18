@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { api, ApiError, type QuickPrompt } from "@/lib/api";
+import { useChat, useQuickPrompts } from "@/lib/queries";
 import ClipThumb from "./ClipThumb";
 import Markdown from "./Markdown";
 import styles from "./CopilotPanel.module.css";
@@ -14,23 +14,24 @@ interface Message {
 }
 
 interface Props {
-  quickPrompts: QuickPrompt[];
   open: boolean;
   onClose: () => void;
   onOpenClip: (eventId: string) => void;
 }
 
-export default function CopilotPanel({ quickPrompts, open, onClose, onOpenClip }: Props) {
+export default function CopilotPanel({ open, onClose, onOpenClip }: Props) {
+  const quickPrompts = useQuickPrompts().data ?? [];
+  const chat = useChat();
+  const pending = chat.isPending;
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [pending, setPending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages, pending]);
 
-  const ask = async (question: string) => {
+  const ask = (question: string) => {
     const text = question.trim();
     if (!text || pending) return;
 
@@ -41,27 +42,23 @@ export default function CopilotPanel({ quickPrompts, open, onClose, onOpenClip }
 
     setMessages((prev) => [...prev, { role: "user", content: text }]);
     setInput("");
-    setPending(true);
-    try {
-      const reply = await api.chat(text, history);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: reply.response,
-          referencedEvents: reply.referenced_events,
-          followups: reply.suggested_followups,
-        },
-      ]);
-    } catch (err) {
-      const reason = err instanceof ApiError ? err.message : "The request failed.";
-      setMessages((prev) => [
-        ...prev,
-        { role: "error", content: `No answer: ${reason}` },
-      ]);
-    } finally {
-      setPending(false);
-    }
+    chat.mutate(
+      { message: text, history },
+      {
+        onSuccess: (reply) =>
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: reply.response,
+              referencedEvents: reply.referenced_events,
+              followups: reply.suggested_followups,
+            },
+          ]),
+        onError: (err) =>
+          setMessages((prev) => [...prev, { role: "error", content: `No answer: ${err.message}` }]),
+      },
+    );
   };
 
   return (
@@ -129,7 +126,7 @@ export default function CopilotPanel({ quickPrompts, open, onClose, onOpenClip }
         className={styles.form}
         onSubmit={(e) => {
           e.preventDefault();
-          void ask(input);
+          ask(input);
         }}
       >
         <label htmlFor="copilot-input" className="visually-hidden">
@@ -144,7 +141,7 @@ export default function CopilotPanel({ quickPrompts, open, onClose, onOpenClip }
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
-              void ask(input);
+              ask(input);
             }
           }}
         />

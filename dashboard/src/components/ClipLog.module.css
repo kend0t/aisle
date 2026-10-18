@@ -93,33 +93,6 @@
   color: var(--ink-2);
 }
 
-.outcome {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.outcome::before {
-  content: "";
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-}
-
-.taken::before {
-  background: var(--taken);
-}
-
-.returned::before {
-  background: var(--putback);
-}
-
-.none::before {
-  background: var(--nopickup);
-}
-
 .filterCount {
   color: var(--ink-3);
   font-feature-settings: "tnum";

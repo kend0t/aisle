@@ -1,18 +1,20 @@
-import type { DashboardState } from "@/lib/dashboardStore";
+import type { InteractionEvent } from "@/lib/api";
 import { formatSeconds, meanGeminiLatency } from "@/lib/format";
 import styles from "./StatusBar.module.css";
 
 interface Props {
-  data: DashboardState;
+  events: InteractionEvent[];
+  failed: boolean;
+  /** Time of the last successful load in ms since the epoch; 0 before the first one. */
+  updatedAt: number;
   onOpenCopilot: () => void;
 }
 
-export default function StatusBar({ data, onOpenCopilot }: Props) {
-  const latency = meanGeminiLatency(data.events);
-  const updated = data.updatedAt?.toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+export default function StatusBar({ events, failed, updatedAt, onOpenCopilot }: Props) {
+  const latency = meanGeminiLatency(events);
+  const updated = updatedAt
+    ? new Date(updatedAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
+    : null;
 
   return (
     <header className={styles.bar}>
@@ -30,8 +32,8 @@ export default function StatusBar({ data, onOpenCopilot }: Props) {
         )}
         <div aria-live="polite">
           <dt className="visually-hidden">Status</dt>
-          <dd className={data.status === "error" ? styles.error : undefined}>
-            {data.status === "error"
+          <dd className={failed ? styles.error : undefined}>
+            {failed
               ? "Backend offline, retrying"
               : updated
                 ? `Updated ${updated}`

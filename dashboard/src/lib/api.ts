@@ -1,100 +1,25 @@
-// Types mirror the Pydantic models in backend_service/models/.
+// Types come from the backend's OpenAPI schema. Regenerate with `npm run gen:api`.
+import type { components } from "./api.gen";
+
+type Schemas = components["schemas"];
+
+export type InteractionEvent = Schemas["InteractionEvent"];
+export type Outcome = Schemas["ConversionOutcome"];
+export type BehaviorTag = Schemas["BehaviorTag"];
+export type Finding = Schemas["Finding"];
+export type FindingSeverity = Schemas["FindingSeverity"];
+export type InsightsResponse = Schemas["InsightsResponse"];
+export type QuickPrompt = Schemas["QuickPrompt"];
+export type ChatResponse = Schemas["ChatResponse"];
+export type ChatTurn = Pick<Schemas["ChatMessage"], "role" | "content">;
 
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1";
 
-export type Outcome = "taken" | "returned" | "none";
-export type InteractionType = "passed_by" | "browsed" | "examined" | "compared";
-export type BehaviorTag =
-  | "phone_check"
-  | "compared_alternatives"
-  | "low_shelf_reach"
-  | "label_inspection"
-  | "carried_basket"
-  | "hesitated";
-
-export interface InteractionEvent {
-  event_id: string;
-  timestamp: string;
-  zone_id: string;
-  zone_dwell_time_seconds: number;
-  interaction_type: InteractionType;
-  conversion_outcome: Outcome;
-  product_category_engaged: string;
-  shopper_group_size: number;
-  estimated_demographic: string;
-  behavioral_summary: string;
-  behavior_tags: BehaviorTag[];
-  video_uri?: string | null;
-  confidence_score?: number | null;
-  gemini_latency_ms?: number | null;
-  total_latency_ms?: number | null;
-  created_at: string;
-}
-
-export interface ZoneStat {
-  zone_id: string;
-  display_name: string;
-  interactions: number;
-  conversion_rate: number;
-  average_dwell: number;
-  taken_count: number;
-  returned_count: number;
-  sample_products: string[];
-}
-
-export interface AnalyticsSummary {
-  total_interactions: number;
-  conversion_rate: number;
-  abandonment_rate: number;
-  average_dwell_time_seconds: number;
-  breakdown_by_outcome: Partial<Record<Outcome, number>>;
-  breakdown_by_type: Partial<Record<InteractionType, number>>;
-  zones?: ZoneStat[];
-}
-
-export type FindingSeverity = "act" | "watch" | "info";
-
-export interface Finding {
-  title: string;
-  /** Shelf-level change to try. Empty on findings cached before the field existed. */
-  action: string;
-  detail: string;
-  zone_id: string | null;
-  severity: FindingSeverity;
-  evidence_event_ids: string[];
-}
-
-export interface InsightsResponse {
-  findings: Finding[];
-  source: "gemini" | "rules";
-  event_count: number;
-  generated_at: string;
-}
-
-export interface QuickPrompt {
-  id: string;
-  title: string;
-  prompt: string;
-  icon: string;
-  category: string;
-}
-
-export interface ChatTurn {
-  role: "user" | "assistant";
-  content: string;
-}
-
-export interface ChatResponse {
-  response: string;
-  suggested_followups: string[];
-  referenced_events: string[];
-  timestamp: string;
-}
-
 export class ApiError extends Error {
   constructor(
     message: string,
+    /** HTTP status; undefined when the backend did not answer at all. */
     readonly status?: number,
   ) {
     super(message);
@@ -109,15 +34,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError(`The backend at ${API_BASE} is not reachable.`);
   }
   if (!res.ok) {
-    throw new ApiError(`The backend returned ${res.status} for ${path}.`, res.status);
+    // FastAPI errors carry a short reason in `detail`, for example "Firestore query failed (NotFound)".
+    const body = (await res.json().catch(() => null)) as { detail?: unknown } | null;
+    const detail = typeof body?.detail === "string" ? body.detail : `The backend returned ${res.status}.`;
+    throw new ApiError(detail, res.status);
   }
   return (await res.json()) as T;
 }
 
 export const api = {
-  summary: () => request<AnalyticsSummary>("/analytics/summary"),
   events: () => request<InteractionEvent[]>("/events?limit=500"),
-  event: (id: string) => request<InteractionEvent>(`/events/${id}`),
   insights: () => request<InsightsResponse>("/insights"),
   quickPrompts: () => request<QuickPrompt[]>("/chat/quick-prompts"),
   chat: (message: string, history: ChatTurn[]) =>

@@ -1,6 +1,7 @@
 import type { InteractionEvent, Outcome } from "@/lib/api";
 import { countOutcomes, humanize, OUTCOME_LABEL, TAG_LABEL, zoneName } from "@/lib/format";
 import ClipThumb from "./ClipThumb";
+import OutcomeBadge from "./OutcomeBadge";
 import styles from "./ClipLog.module.css";
 
 const FILTERS: (Outcome | "all")[] = ["all", "taken", "returned", "none"];
@@ -80,9 +81,7 @@ export default function ClipLog({
 
               <div className={styles.body}>
                 <div className={styles.topline}>
-                  <span className={`${styles.outcome} ${styles[event.conversion_outcome]}`}>
-                    {OUTCOME_LABEL[event.conversion_outcome]}
-                  </span>
+                  <OutcomeBadge outcome={event.conversion_outcome} />
                   <span>{zoneName(event.zone_id)}</span>
                   <span>{event.zone_dwell_time_seconds} s at shelf</span>
                 </div>

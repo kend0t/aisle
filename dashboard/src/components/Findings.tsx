@@ -1,5 +1,4 @@
-import type { Finding, FindingSeverity, InsightsResponse, InteractionEvent } from "@/lib/api";
-import { retryInsights, type DashboardState } from "@/lib/dashboardStore";
+import type { Finding, FindingSeverity, InsightsResponse } from "@/lib/api";
 import { zoneName } from "@/lib/format";
 import ClipThumb from "./ClipThumb";
 import styles from "./Findings.module.css";
@@ -21,14 +20,24 @@ const MAX_THUMBS = 4;
 
 interface Props {
   insights: InsightsResponse | null;
-  status: DashboardState["insightsStatus"];
-  events: InteractionEvent[];
+  loading: boolean;
+  failed: boolean;
+  onRetry: () => void;
+  clipCount: number;
   onOpenClip: (eventId: string) => void;
   onSelectZone: (zoneId: string) => void;
 }
 
-export default function Findings({ insights, status, events, onOpenClip, onSelectZone }: Props) {
-  const showLoading = status === "loading" && !insights;
+export default function Findings({
+  insights,
+  loading,
+  failed,
+  onRetry,
+  clipCount,
+  onOpenClip,
+  onSelectZone,
+}: Props) {
+  const showLoading = loading && !insights;
 
   return (
     <section className={styles.findings} aria-labelledby="findings-heading" aria-busy={showLoading}>
@@ -45,17 +54,17 @@ export default function Findings({ insights, status, events, onOpenClip, onSelec
 
       {showLoading && (
         <div className={styles.loading}>
-          <p>Reading {events.length} clips, about 30 s</p>
+          <p>Reading {clipCount} clips, about 30 s</p>
           <span className={styles.skeleton} />
           <span className={styles.skeleton} />
           <span className={styles.skeleton} />
         </div>
       )}
 
-      {status === "error" && !insights && (
+      {failed && !loading && !insights && (
         <div className={styles.failed}>
           <p>Findings did not load.</p>
-          <button type="button" onClick={retryInsights}>
+          <button type="button" onClick={onRetry}>
             Try again
           </button>
         </div>

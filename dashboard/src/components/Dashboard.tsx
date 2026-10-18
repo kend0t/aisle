@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useDashboard } from "@/lib/dashboardStore";
-import type { Outcome } from "@/lib/api";
+import { ApiError, type InteractionEvent, type Outcome } from "@/lib/api";
+import { useEvents, useInsights } from "@/lib/queries";
 import StatusBar from "./StatusBar";
 import ShelfFunnel from "./ShelfFunnel";
 import ShelfMap from "./ShelfMap";
@@ -12,32 +12,44 @@ import ReplayDialog from "./ReplayDialog";
 import CopilotPanel from "./CopilotPanel";
 import styles from "./Dashboard.module.css";
 
+const NO_EVENTS: InteractionEvent[] = [];
+
 export default function Dashboard() {
-  const data = useDashboard();
+  const eventsQuery = useEvents();
+  const insightsQuery = useInsights(eventsQuery.data);
+  const events = eventsQuery.data ?? NO_EVENTS;
   const [zoneId, setZoneId] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<Outcome | "all">("all");
   const [clipId, setClipId] = useState<string | null>(null);
   const [copilotOpen, setCopilotOpen] = useState(false);
 
-  const openClip = data.events.find((e) => e.event_id === clipId) ?? null;
-  const attentionZones = (data.insights?.findings ?? [])
+  const openClip = events.find((e) => e.event_id === clipId) ?? null;
+  const attentionZones = (insightsQuery.data?.findings ?? [])
     .filter((f) => f.severity === "act" && f.zone_id)
     .map((f) => f.zone_id as string);
 
-  const ready = data.status !== "loading" || data.events.length > 0;
+  const ready = eventsQuery.data !== undefined;
+  const error = eventsQuery.error;
+  // No HTTP status means the backend did not answer; a status means it answered with an error.
+  const offline = !(error instanceof ApiError && error.status !== undefined);
 
   const toggleZone = (id: string) => setZoneId((current) => (current === id ? null : id));
 
   return (
     <div className={styles.shell}>
       <div className={styles.main}>
-        <StatusBar data={data} onOpenCopilot={() => setCopilotOpen(true)} />
+        <StatusBar
+          events={events}
+          failed={eventsQuery.isError}
+          updatedAt={eventsQuery.dataUpdatedAt}
+          onOpenCopilot={() => setCopilotOpen(true)}
+        />
 
-        {data.status === "error" && data.events.length === 0 ? (
+        {error && !ready ? (
           <section className={styles.offline} aria-live="polite">
-            <h1>Backend offline. Retrying.</h1>
-            <p>{data.error}</p>
-            {process.env.NODE_ENV === "development" && (
+            <h1>{offline ? "Backend offline. Retrying." : "Data not available. Retrying."}</h1>
+            <p>{error.message}</p>
+            {offline && process.env.NODE_ENV === "development" && (
               <p>
                 <code>uv run uvicorn backend_service.main:app --port 8000</code>
               </p>
@@ -46,8 +58,8 @@ export default function Dashboard() {
         ) : (
           <main className={styles.content}>
             <ShelfFunnel
-              loading={data.status === "loading"}
-              events={data.events}
+              loading={eventsQuery.isPending}
+              events={events}
               zoneId={zoneId}
               outcome={outcome}
               onSelectOutcome={setOutcome}
@@ -57,15 +69,17 @@ export default function Dashboard() {
             <div className={styles.hero}>
               <ShelfMap
                 ready={ready}
-                events={data.events}
+                events={events}
                 selectedZone={zoneId}
                 attentionZones={attentionZones}
                 onSelectZone={toggleZone}
               />
               <Findings
-                insights={data.insights}
-                status={data.insightsStatus}
-                events={data.events}
+                insights={insightsQuery.data ?? null}
+                loading={insightsQuery.isFetching}
+                failed={insightsQuery.isError}
+                onRetry={() => void insightsQuery.refetch()}
+                clipCount={events.length}
                 onOpenClip={setClipId}
                 onSelectZone={setZoneId}
               />
@@ -73,7 +87,7 @@ export default function Dashboard() {
 
             {ready && (
               <ClipLog
-                events={data.events}
+                events={events}
                 zoneId={zoneId}
                 outcome={outcome}
                 onClearZone={() => setZoneId(null)}
@@ -86,7 +100,6 @@ export default function Dashboard() {
       </div>
 
       <CopilotPanel
-        quickPrompts={data.quickPrompts}
         open={copilotOpen}
         onClose={() => setCopilotOpen(false)}
         onOpenClip={setClipId}

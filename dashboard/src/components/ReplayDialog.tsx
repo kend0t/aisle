@@ -2,7 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import { clipUrl, type InteractionEvent } from "@/lib/api";
-import { formatDate, formatSeconds, humanize, OUTCOME_LABEL, TAG_LABEL, zoneName } from "@/lib/format";
+import { formatDate, formatSeconds, humanize, TAG_LABEL, zoneName } from "@/lib/format";
+import OutcomeBadge from "./OutcomeBadge";
 import styles from "./ReplayDialog.module.css";
 
 interface Props {
@@ -59,9 +60,7 @@ export default function ReplayDialog({ event, onClose }: Props) {
           <div className={styles.details}>
             <div className={styles.titleRow}>
               <h2 id="replay-heading">
-                <span className={`${styles.outcome} ${styles[event.conversion_outcome]}`}>
-                  {OUTCOME_LABEL[event.conversion_outcome]}
-                </span>{" "}
+                <OutcomeBadge outcome={event.conversion_outcome} />{" "}
                 at {zoneName(event.zone_id).toLowerCase()}
               </h2>
               <button type="button" className={styles.close} onClick={onClose}>

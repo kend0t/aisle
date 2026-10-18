@@ -1,0 +1,26 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.badge::before {
+  content: "";
+  width: 0.6em;
+  height: 0.6em;
+  border-radius: 50%;
+}
+
+.taken::before {
+  background: var(--taken);
+}
+
+.returned::before {
+  background: var(--putback);
+}
+
+.none::before {
+  background: var(--nopickup);
+}

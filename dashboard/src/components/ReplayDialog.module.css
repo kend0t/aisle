@@ -56,22 +56,6 @@
   font-weight: 500;
 }
 
-.outcome {
-  font-weight: 700;
-}
-
-.taken {
-  color: var(--taken);
-}
-
-.returned {
-  color: var(--putback);
-}
-
-.none {
-  color: var(--ink-2);
-}
-
 .close {
   flex: none;
   padding: 4px 10px;
