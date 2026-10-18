@@ -34,7 +34,7 @@ def build_services(settings: Settings) -> Services:
         repo=repo,
         storage=storage,
         media=ClipMediaService(storage, allow_sample_clip=seed),
-        analyzer=GeminiAnalyzerService(gemini, storage),
+        analyzer=GeminiAnalyzerService(gemini, storage, settings.READS_PER_CLIP),
         chat=chat,
         insights=InsightsService(repo, chat, gemini),
     )

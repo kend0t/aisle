@@ -22,7 +22,11 @@ function geminiRecord(event: InteractionEvent) {
     estimated_demographic: event.estimated_demographic,
     behavior_tags: event.behavior_tags,
     items_taken_count: event.items_taken_count ?? (event.conversion_outcome === "taken" ? 1 : 0),
+    picked_up_item: event.picked_up_item,
+    left_with_item: event.left_with_item,
     behavioral_summary: event.behavioral_summary,
+    reading_count: event.reading_count,
+    outcome_agreement: event.outcome_agreement,
   };
 }
 
@@ -71,6 +75,17 @@ export default function ReplayDialog({ event, onClose }: Props) {
 
             <p className={styles.summary}>{event.behavioral_summary}</p>
 
+            {event.needs_review && (
+              <div className={styles.review}>
+                <p>Check this outcome</p>
+                <ul>
+                  {event.review_reasons.map((reason) => (
+                    <li key={reason}>{reason}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {event.behavior_tags.length > 0 && (
               <ul className={styles.tags} aria-label="Behaviors Gemini saw">
                 {event.behavior_tags.map((tag) => (
@@ -94,6 +109,14 @@ export default function ReplayDialog({ event, onClose }: Props) {
                 <dt>Time at shelf</dt>
                 <dd>{event.zone_dwell_time_seconds} s</dd>
               </div>
+              {event.reading_count && event.outcome_agreement !== null ? (
+                <div title="Gemini reads the clip several times; the outcome is their majority">
+                  <dt>Readings</dt>
+                  <dd>
+                    {Math.round(event.outcome_agreement * event.reading_count)} of {event.reading_count} agree
+                  </dd>
+                </div>
+              ) : null}
               {event.gemini_latency_ms ? (
                 <div>
                   <dt>Gemini read time</dt>

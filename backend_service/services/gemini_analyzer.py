@@ -1,6 +1,7 @@
 import logging
 import time
-from typing import Any, Optional
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any, List, Optional
 
 from backend_service.models.interaction_event import (
     BehaviorTag,
@@ -10,6 +11,8 @@ from backend_service.models.interaction_event import (
     InteractionEvent,
     InteractionType,
 )
+from backend_service.errors import GeminiError
+from backend_service.services.clip_verification import combine
 from backend_service.services.gemini_client import GeminiClient
 from backend_service.services.storage_service import StorageService
 
@@ -41,17 +44,26 @@ Definitions:
 - items_taken_count:
   - 0 if conversion_outcome is 'returned' or 'none'.
   - If conversion_outcome is 'taken', count the exact number of physical product units the shopper takes or puts into cart/basket (e.g. 1, 2, 3...). Pay close attention if a customer takes multiple items consecutively.
+- picked_up_item: true if the shopper lifted any item off the shelf, even briefly.
+- left_with_item: true if, at the end of the clip, the shopper holds an item or it is in their basket or cart.
+  The outcome must follow from these two: taken = picked up and left with an item; returned = picked
+  up and left without one; none = never picked up.
 """
     + BEHAVIOR_TAG_GUIDE
 )
 
 
-class GeminiAnalyzerService:
-    """Reads one shelf clip with Gemini and turns it into an InteractionEvent."""
+# Reads must be able to differ, or the majority vote measures nothing.
+READ_TEMPERATURE = 0.4
 
-    def __init__(self, gemini: GeminiClient, storage: StorageService) -> None:
+
+class GeminiAnalyzerService:
+    """Reads one shelf clip several times with Gemini and stores the checked majority."""
+
+    def __init__(self, gemini: GeminiClient, storage: StorageService, reads_per_clip: int = 3) -> None:
         self.gemini = gemini
         self.storage = storage
+        self.reads_per_clip = max(1, reads_per_clip)
 
     def analyze_video_clip(
         self,
@@ -61,30 +73,22 @@ class GeminiAnalyzerService:
         estimated_dwell_time_seconds: Optional[int] = None,
         timestamp: Optional[str] = None,
     ) -> InteractionEvent:
-        """Raises GeminiError when Gemini fails; no event is invented in that case."""
+        """Raises GeminiError when every read fails; no event is invented in that case."""
         start = time.time()
-        if self.gemini.available:
-            prompt = (
-                f"Zone ID: {zone_id}\n"
-                f"Estimated edge dwell time: {estimated_dwell_time_seconds or 'observe from video'} seconds.\n"
-                "Analyze the shopper behavior in this clip."
-            )
-            analysis = self.gemini.generate(
-                system=SYSTEM_PROMPT,
-                contents=[self._video_part(video_uri), prompt],
-                schema=ClipAnalysis,
-                temperature=0.2,
-            )
-        else:
-            analysis = _mock_analysis(estimated_dwell_time_seconds or 7)
+        reads = self.read_clip(video_uri, zone_id, estimated_dwell_time_seconds)
+        consensus = combine(reads)
 
         event = InteractionEvent(
             event_id=event_id,
             zone_id=zone_id,
             video_uri=video_uri,
             gemini_latency_ms=int((time.time() - start) * 1000),
+            reading_count=consensus.reading_count,
+            outcome_agreement=consensus.outcome_agreement,
+            needs_review=consensus.needs_review,
+            review_reasons=consensus.review_reasons,
             **({"timestamp": timestamp} if timestamp else {}),
-            **analysis.model_dump(mode="json"),
+            **consensus.analysis.model_dump(mode="json"),
         )
         logger.info(
             "Gemini video analysis [%s | Zone: %s]: Type=%s | Outcome=%s | Product='%s'\n"
@@ -96,7 +100,41 @@ class GeminiAnalyzerService:
             event.product_category_engaged,
             event.behavioral_summary,
         )
+        if event.needs_review:
+            logger.warning("Clip %s needs review: %s", event.event_id, "; ".join(event.review_reasons))
         return event
+
+    def read_clip(
+        self, video_uri: str, zone_id: str, estimated_dwell_time_seconds: Optional[int] = None
+    ) -> List[ClipAnalysis]:
+        """Independent reads of one clip, run in parallel. Failed reads are dropped."""
+        if not self.gemini.available:
+            return [_mock_analysis(estimated_dwell_time_seconds or 7)] * self.reads_per_clip
+
+        video = self._video_part(video_uri)
+        prompt = (
+            f"Zone ID: {zone_id}\n"
+            f"Estimated edge dwell time: {estimated_dwell_time_seconds or 'observe from video'} seconds.\n"
+            "Analyze the shopper behavior in this clip."
+        )
+
+        def one_read(_: int) -> Optional[ClipAnalysis]:
+            try:
+                return self.gemini.generate(
+                    system=SYSTEM_PROMPT,
+                    contents=[video, prompt],
+                    schema=ClipAnalysis,
+                    temperature=READ_TEMPERATURE,
+                )
+            except GeminiError as e:
+                logger.warning("One read of %s failed: %s", video_uri, e)
+                return None
+
+        with ThreadPoolExecutor(max_workers=self.reads_per_clip) as pool:
+            reads = [r for r in pool.map(one_read, range(self.reads_per_clip)) if r is not None]
+        if not reads:
+            raise GeminiError("call (every read failed)")
+        return reads
 
     def _video_part(self, video_uri: str) -> Any:
         from google.genai import types
@@ -113,6 +151,8 @@ def _mock_analysis(dwell_time: int) -> ClipAnalysis:
         interaction_type=InteractionType.EXAMINED,
         conversion_outcome=ConversionOutcome.RETURNED,
         items_taken_count=0,
+        picked_up_item=True,
+        left_with_item=False,
         product_category_engaged="eye_level_organic_cereals",
         shopper_group_size=1,
         estimated_demographic=EstimatedDemographic.ADULT,

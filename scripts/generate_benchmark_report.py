@@ -1,160 +1,138 @@
-"""
-AIsle Prototype Performance & Benchmarking Report Generator
-Queries Cloud Firestore for ingested interaction events and calculates:
-1. End-to-end pipeline latency (Gemini vision vs cloud overhead)
-2. Shopper outcome distribution & zone conversion rates
-3. Cloud bandwidth and egress cost reduction metrics
+"""Writes docs/benchmarks/evaluation_report.md from measured results only.
+
+Sources:
+  - Stored events from the configured data source (AISLE_DATA_SOURCE): outcomes and latency.
+  - eval/results/reader.json from scripts/eval_reader.py: reading accuracy against human labels.
+  - eval/results/copilot.json from scripts/eval_copilot.py: Copilot number accuracy.
+
+A section whose source is missing says so; no number is filled in by hand.
+
+    uv run python -m scripts.generate_benchmark_report
 """
 
-import os
-import sys
+import json
+import statistics
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List
-import numpy as np
-from google.cloud import firestore
+from typing import Any, List, Optional
 
-# Setup credentials
-KEY_PATH = os.path.join(os.path.dirname(__file__), "..", "secrets", "aisle-key.json")
-if os.path.exists(KEY_PATH):
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.abspath(KEY_PATH)
+from backend_service.config import get_settings
+from backend_service.db.firestore_client import build_repository
+from backend_service.models.interaction_event import InteractionEvent
 
-PROJECT_ID = os.getenv("GCP_PROJECT_ID", "aisle-retail")
-DB_NAME = os.getenv("FIRESTORE_DATABASE", "(default)")
-COLLECTION = os.getenv("FIRESTORE_COLLECTION", "interaction_events")
+OUT = Path("docs/benchmarks/evaluation_report.md")
+READER = Path("eval/results/reader.json")
+COPILOT = Path("eval/results/copilot.json")
+
+# The targets the project set at the start (earlier report), kept so results are comparable.
+TARGET_GEMINI_MS = 3_500
+TARGET_TOTAL_MS = 5_000
 
 
-def generate_benchmark_report():
-    print(f"Connecting to Cloud Firestore ({PROJECT_ID} / {DB_NAME})...")
-    try:
-        db = firestore.Client(project=PROJECT_ID, database=DB_NAME)
-        docs = list(db.collection(COLLECTION).stream())
-    except Exception as e:
-        print(f"Error querying Firestore: {e}")
-        sys.exit(1)
+def p95(values: List[int]) -> int:
+    ordered = sorted(values)
+    return ordered[min(len(ordered) - 1, round(0.95 * (len(ordered) - 1)))]
 
-    if not docs:
-        print("⚠️ No interaction events found in Firestore. Please run the camera node first!")
-        return
 
-    events = [d.to_dict() for d in docs]
-    print(f"Loaded {len(events)} interaction events for benchmarking analysis.\n")
+def status(value: Optional[float], target: float) -> str:
+    if value is None:
+        return "Not measured"
+    return "Met" if value <= target else "Not met"
 
-    # Metrics extraction
-    gemini_latencies = [e["gemini_latency_ms"] for e in events if e.get("gemini_latency_ms")]
-    total_latencies = [e["total_latency_ms"] for e in events if e.get("total_latency_ms")]
-    dwell_times = [e.get("zone_dwell_time_seconds", 0) for e in events]
-    
-    outcomes: Dict[str, int] = {}
-    zones: Dict[str, int] = {}
-    interactions: Dict[str, int] = {}
 
-    for e in events:
-        out = str(e.get("conversion_outcome", "unknown")).upper()
-        outcomes[out] = outcomes.get(out, 0) + 1
+def load(path: Path) -> Optional[Any]:
+    return json.loads(path.read_text()) if path.exists() else None
 
-        z = str(e.get("zone_id", "unknown"))
-        zones[z] = zones.get(z, 0) + 1
 
-        itype = str(e.get("interaction_type", "unknown")).upper()
-        interactions[itype] = interactions.get(itype, 0) + 1
+def outcome_section(events: List[InteractionEvent]) -> List[str]:
+    counts = Counter(e.conversion_outcome.value for e in events)
+    picked_up = counts["taken"] + counts["returned"]
+    pct = lambda n: f"{100 * n / picked_up:.1f}%" if picked_up else "n/a"  # noqa: E731
+    zones = Counter(e.zone_id for e in events)
+    flagged = [e for e in events if e.needs_review]
+    verified = [e for e in events if e.reading_count]
+    lines = [
+        "## Stored clips",
+        "",
+        f"{len(events)} clips. Outcomes are Gemini's readings, checked against labels under 'Reading accuracy'.",
+        "",
+        "| Outcome | Clips | Share of picked up |",
+        "|---|---|---|",
+        f"| Taken | {counts['taken']} | {pct(counts['taken'])} |",
+        f"| Put back | {counts['returned']} | {pct(counts['returned'])} |",
+        f"| No pick-up | {counts['none']} | - |",
+        "",
+        "Clips per zone: " + ", ".join(f"{z} {n}" for z, n in sorted(zones.items())) + ".",
+        "",
+    ]
+    if verified:
+        lines.append(
+            f"{len(verified)} clips were read {verified[0].reading_count} times each; "
+            f"{len(flagged)} are flagged for a person to check."
+        )
+    else:
+        lines.append("These clips were read once each, before verified reading existed.")
+    return lines + [""]
 
-    total_events = len(events)
-    taken_count = outcomes.get("TAKEN", 0)
-    returned_count = outcomes.get("RETURNED", 0)
-    conversion_rate = (taken_count / total_events) * 100.0 if total_events else 0.0
-    abandonment_rate = (returned_count / total_events) * 100.0 if total_events else 0.0
 
-    mean_gemini_lat = np.mean(gemini_latencies) if gemini_latencies else 2100.0
-    p95_gemini_lat = np.percentile(gemini_latencies, 95) if gemini_latencies else 2800.0
-    mean_total_lat = np.mean(total_latencies) if total_latencies else 3100.0
+def latency_section(events: List[InteractionEvent]) -> List[str]:
+    gemini = [e.gemini_latency_ms for e in events if e.gemini_latency_ms]
+    total = [e.total_latency_ms for e in events if e.total_latency_ms]
+    g_mean = int(statistics.mean(gemini)) if gemini else None
+    t_mean = int(statistics.mean(total)) if total else None
+    fmt = lambda v: f"{v:,} ms" if v is not None else "Not measured"  # noqa: E731
+    return [
+        "## Latency",
+        "",
+        f"Measured per clip and stored with it ({len(gemini)} clips with Gemini time, {len(total)} with total time).",
+        "",
+        "| Metric | Mean | P95 | Target | Status |",
+        "|---|---|---|---|---|",
+        f"| Gemini reading | {fmt(g_mean)} | {fmt(p95(gemini) if gemini else None)} | under {TARGET_GEMINI_MS:,} ms | {status(g_mean, TARGET_GEMINI_MS)} |",
+        f"| Upload to stored record | {fmt(t_mean)} | {fmt(p95(total) if total else None)} | under {TARGET_TOTAL_MS:,} ms | {status(t_mean, TARGET_TOTAL_MS)} |",
+        "",
+        "Edge frame rate and bandwidth savings are not reported: the camera node does not store them yet.",
+        "",
+    ]
 
-    # Theoretical cost reduction model (1 camera running 24/7 for 30 days)
-    # 30 days * 24h = 720 hours = 2,592,000 seconds
-    # At standard 1080p 2Mbps: 2.592M * 0.25 MB = ~648 GB/month
-    # Event-driven: assumes 80% empty aisle / non-shoppers filtered out
-    bandwidth_saved_pct = 78.4  # Empirical from MERL test runs
 
-    print("=" * 70)
-    print("🚀 AISLE PROTOTYPE BENCHMARK & PERFORMANCE REPORT")
-    print("=" * 70)
-    print(f"📊 Dataset Size:             {total_events} interaction events")
-    print(f"🎯 Shelf Conversion Rate:    {conversion_rate:.1f}% ({taken_count} purchases / cart additions)")
-    print(f"↩️ Shelf Abandonment Rate:   {abandonment_rate:.1f}% ({returned_count} examined & returned)")
-    print("-" * 70)
-    print("⚡ CLOUD PIPELINE LATENCY")
-    print(f"   • Gemini 2.5 Flash Vision: Mean {mean_gemini_lat:.0f} ms | P95 {p95_gemini_lat:.0f} ms")
-    print(f"   • End-to-End Ingestion:    Mean {mean_total_lat:.0f} ms (Upload + Gemini + Firestore)")
-    print("-" * 70)
-    print("💰 EDGE BANDWIDTH & COST OPTIMIZATION")
-    print(f"   • Ingress Filtering:       {bandwidth_saved_pct:.1f}% data reduction at edge")
-    print(f"   • Network Egress Saved:    Estimated ~508 GB / camera / month")
-    print(f"   • Cloud API Cost Savings:  ~75% reduction vs naive continuous streaming")
-    print("=" * 70)
+def reader_section(reader: Optional[dict]) -> List[str]:
+    lines = ["## Reading accuracy", ""]
+    if not reader:
+        return lines + ["Not measured yet. Run `scripts/eval_reader.py` after labeling clips with `eval/label.html`.", ""]
+    lines.append(f"Source: `{READER}`.")
+    lines.append("")
+    return lines + Path(READER.with_suffix(".md")).read_text().splitlines() + [""]
 
-    # Export report to markdown for pitch deck
-    out_dir = Path("docs/benchmarks")
-    out_dir.mkdir(parents=True, exist_ok=True)
-    report_file = out_dir / "prototype_performance_report.md"
 
-    md_content = f"""# AIsle Prototype Performance & Benchmark Report
+def copilot_section(copilot: Optional[dict]) -> List[str]:
+    lines = ["## Copilot numbers", ""]
+    if not copilot:
+        return lines + ["Not measured yet. Run `scripts/eval_copilot.py`.", ""]
+    lines.append(f"Source: `{COPILOT}`.")
+    lines.append("")
+    return lines + Path(COPILOT.with_suffix(".md")).read_text().splitlines() + [""]
 
-**Generated At:** {datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")}  
-**Cloud Infrastructure:** Google Cloud Platform (`{PROJECT_ID}`, Region: `asia-southeast1`)  
-**AI Reasoning Engine:** Gemini 2.5 Flash on Vertex AI  
-**Edge Tracking:** YOLOv8n + ByteTrack (Retail Zone Dwell Engine)
 
----
-
-## 1. Executive Performance Summary
-
-| Metric | Measured Prototype Value | Benchmark Target | Status |
-| :--- | :--- | :--- | :--- |
-| **Edge Compute Speed** | **25 – 32 FPS** | &ge; 20 FPS (Real-time video) | 🟢 Exceeds Target |
-| **Gemini 2.5 Vision Latency** | **{mean_gemini_lat:.0f} ms** (P95: {p95_gemini_lat:.0f} ms) | < 3,500 ms | 🟢 Fast Operational Alert |
-| **End-to-End Pipeline Latency** | **{mean_total_lat:.0f} ms** | < 5,000 ms | 🟢 Near Real-Time |
-| **Cloud Bandwidth Reduction** | **{bandwidth_saved_pct:.1f}%** | &ge; 70% | 🟢 Major Cost Advantage |
-| **Shelf Conversion Rate** | **{conversion_rate:.1f}%** | Baseline Analytics | 🟢 Ground Truth Verified |
-| **Cart Abandonment Rate** | **{abandonment_rate:.1f}%** | Baseline Analytics | 🟢 Ground Truth Verified |
-
----
-
-## 2. Ingested Events & Outcome Breakdown
-
-Total interaction sessions analyzed: **{total_events}**
-
-| Conversion Outcome | Count | Percentage | Description |
-| :--- | :--- | :--- | :--- |
-| **TAKEN** | `{taken_count}` | `{conversion_rate:.1f}%` | Item removed from shelf and added to basket/cart |
-| **RETURNED** | `{returned_count}` | `{abandonment_rate:.1f}%` | Item inspected, compared, and returned to shelf |
-| **NONE** | `{outcomes.get('NONE', 0)}` | `{(outcomes.get('NONE', 0)/total_events)*100:.1f}%` | Pure browsing or photo-taking without purchase |
-
-### Zone Activity Distribution:
-"""
-    for z_name, z_count in zones.items():
-        md_content += f"- **`{z_name}`**: {z_count} interactions ({z_count/total_events*100:.1f}%)\n"
-
-    md_content += """
----
-
-## 3. Financial & Operational ROI Model
-
-For a mid-sized physical retail store operating **10 cameras**:
-
-| Strategy | Monthly Ingress / Storage | Estimated Monthly Cloud Vision Cost |
-| :--- | :--- | :--- |
-| **Traditional 24/7 Cloud Streaming** | ~6.48 TB / month | ~$3,200 / month |
-| **AIsle Edge-Filtered Ingestion** | **~1.39 TB / month** | **~$680 / month** |
-| **Net Savings** | **~78.5% Egress Reduction** | **~78.7% Cost Savings** |
-
----
-*Report generated automatically from live Cloud Firestore telemetry.*
-"""
-    with open(report_file, "w") as f:
-        f.write(md_content)
-
-    print(f"\n📄 Saved full presentation report to: {report_file}")
+def main() -> None:
+    settings = get_settings()
+    events = build_repository(settings).list_events(limit=500)
+    lines = [
+        "# AIsle benchmark report",
+        "",
+        f"Generated {datetime.now(timezone.utc):%Y-%m-%d %H:%M} UTC by `scripts/generate_benchmark_report.py` "
+        f"from the `{settings.AISLE_DATA_SOURCE}` data source and `{settings.GEMINI_MODEL}`. "
+        "Every number below comes from stored events or an evaluation result file.",
+        "",
+    ]
+    lines += reader_section(load(READER))
+    lines += copilot_section(load(COPILOT))
+    lines += outcome_section(events)
+    lines += latency_section(events)
+    OUT.write_text("\n".join(lines))
+    print(f"Wrote {OUT}")
 
 
 if __name__ == "__main__":
-    generate_benchmark_report()
+    main()

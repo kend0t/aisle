@@ -1,6 +1,7 @@
 import logging
 import os
-from typing import Any, List, Type, TypeVar
+import threading
+from typing import Any, Callable, Dict, List, Tuple, Type, TypeVar
 
 from pydantic import BaseModel
 
@@ -10,6 +11,9 @@ from backend_service.errors import GeminiError
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
+
+# Rounds of tool calls before Gemini must answer.
+MAX_TOOL_ROUNDS = 4
 
 
 class GeminiClient:
@@ -23,6 +27,9 @@ class GeminiClient:
         self.model = settings.GEMINI_MODEL
         self.mode = "unavailable"
         self._client = None
+        # Token totals across calls, for cost reporting in the evaluation scripts.
+        self.usage = {"calls": 0, "input_tokens": 0, "output_tokens": 0}
+        self._usage_lock = threading.Lock()
 
         if settings.GOOGLE_APPLICATION_CREDENTIALS:
             os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = settings.GOOGLE_APPLICATION_CREDENTIALS
@@ -52,6 +59,13 @@ class GeminiClient:
     def available(self) -> bool:
         return self._client is not None
 
+    def _count(self, response: Any) -> None:
+        meta = getattr(response, "usage_metadata", None)
+        with self._usage_lock:
+            self.usage["calls"] += 1
+            self.usage["input_tokens"] += getattr(meta, "prompt_token_count", 0) or 0
+            self.usage["output_tokens"] += getattr(meta, "candidates_token_count", 0) or 0
+
     def generate(self, *, system: str, contents: List[Any], schema: Type[T], temperature: float) -> T:
         """Runs one call whose JSON output Gemini must shape to `schema`."""
         if self._client is None:
@@ -70,8 +84,71 @@ class GeminiClient:
                     response_schema=schema,
                 ),
             )
+            self._count(response)
             if isinstance(response.parsed, schema):
                 return response.parsed
             return schema.model_validate_json(response.text or "")
         except Exception as e:
             raise GeminiError("call", e) from e
+
+    def run_tools(
+        self,
+        *,
+        system: str,
+        contents: List[Any],
+        tools: Dict[str, Callable[..., Dict[str, Any]]],
+        temperature: float,
+    ) -> Tuple[str, List[str]]:
+        """Lets Gemini call `tools` until it answers. Returns the final text and a trace
+        of the calls made, such as "count_outcomes(zone_id='left_bay_cereal')"."""
+        if self._client is None:
+            raise GeminiError("call (not configured)")
+
+        from google.genai import types
+
+        api = "VERTEX_AI" if self.mode == "vertex" else "GEMINI_API"
+        declarations = [
+            types.FunctionDeclaration.from_callable_with_api_option(callable=fn, api_option=api)
+            for fn in tools.values()
+        ]
+        config = types.GenerateContentConfig(
+            system_instruction=system,
+            temperature=temperature,
+            tools=[types.Tool(function_declarations=declarations)],
+            automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+        )
+        history: List[Any] = list(contents)
+        trace: List[str] = []
+
+        try:
+            for round_number in range(MAX_TOOL_ROUNDS + 1):
+                if round_number == MAX_TOOL_ROUNDS:
+                    # Out of rounds: answer from what the tools returned so far.
+                    config = config.model_copy(update={"tool_config": types.ToolConfig(
+                        function_calling_config=types.FunctionCallingConfig(mode="NONE")
+                    )})
+                response = self._client.models.generate_content(
+                    model=self.model, contents=history, config=config
+                )
+                self._count(response)
+                calls = response.function_calls or []
+                if not calls:
+                    return response.text or "", trace
+
+                history.append(response.candidates[0].content)
+                results = []
+                for call in calls:
+                    args = dict(call.args or {})
+                    trace.append(f"{call.name}({', '.join(f'{k}={v!r}' for k, v in args.items())})")
+                    fn = tools.get(call.name or "")
+                    try:
+                        output = fn(**args) if fn else {"error": f"Unknown tool {call.name}"}
+                    except Exception as e:  # A bad argument is reported back, not raised.
+                        output = {"error": str(e)}
+                    results.append(types.Part.from_function_response(name=call.name or "", response=output))
+                history.append(types.Content(role="user", parts=results))
+        except GeminiError:
+            raise
+        except Exception as e:
+            raise GeminiError("call", e) from e
+        return "", trace

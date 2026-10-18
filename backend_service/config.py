@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     GOOGLE_APPLICATION_CREDENTIALS: Optional[str] = os.getenv(
         "GOOGLE_APPLICATION_CREDENTIALS", None
     )
+    # Independent Gemini reads per clip; the stored outcome is their majority.
+    READS_PER_CLIP: int = 3
 
     # Server Settings
     HOST: str = "0.0.0.0"

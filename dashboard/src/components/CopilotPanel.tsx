@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { ChatTurn } from "@/lib/api";
+import type { BehaviorTag, ChatTurn, Outcome } from "@/lib/api";
+import { OUTCOME_LABEL, TAG_LABEL, zoneName } from "@/lib/format";
 import { useChat, useQuickPrompts } from "@/lib/queries";
 import ClipThumb from "./ClipThumb";
 import Markdown from "./Markdown";
@@ -12,6 +13,7 @@ interface Message {
   content: string;
   referencedEvents?: string[];
   followups?: string[];
+  toolCalls?: string[];
 }
 
 interface Props {
@@ -26,6 +28,28 @@ interface Props {
 
 /** Starter chips show the short title and send the full question. */
 const STARTERS = 4;
+
+const TOOL_VERB: Record<string, string> = {
+  count_outcomes: "Counted outcomes",
+  count_behaviors: "Counted behaviors",
+  list_clips: "Listed clips",
+  get_clip: "Opened clip",
+};
+
+/** "count_outcomes(zone_id='left_bay_cereal', behavior='phone_check')" -> "Counted outcomes at Left bay, cereal, checked phone" */
+function describeToolCall(call: string): string {
+  const match = call.match(/^(\w+)\((.*)\)$/);
+  if (!match) return call;
+  const args = Object.fromEntries(
+    [...match[2].matchAll(/(\w+)=['"]?([^'",]+)['"]?/g)].map(([, key, value]) => [key, value]),
+  );
+  const parts = [TOOL_VERB[match[1]] ?? match[1]];
+  if (args.event_id) parts.push(args.event_id);
+  if (args.zone_id) parts.push(`at ${zoneName(args.zone_id)}`);
+  if (args.behavior) parts.push(`, ${(TAG_LABEL[args.behavior as BehaviorTag] ?? args.behavior).toLowerCase()}`);
+  if (args.outcome) parts.push(`, ${(OUTCOME_LABEL[args.outcome as Outcome] ?? args.outcome).toLowerCase()}`);
+  return parts.join(" ").replace(" ,", ",");
+}
 
 function toHistory(messages: Message[]): ChatTurn[] {
   return messages
@@ -73,6 +97,7 @@ export default function CopilotPanel({ expanded, sheetOpen, onHide, onCloseSheet
               content: reply.response,
               referencedEvents: reply.referenced_events,
               followups: reply.suggested_followups,
+              toolCalls: reply.tool_calls,
             },
           ]),
         onError: (err) =>
@@ -147,6 +172,17 @@ export default function CopilotPanel({ expanded, sheetOpen, onHide, onCloseSheet
                   <ClipThumb key={id} eventId={id} size="s" onOpen={onOpenClip} />
                 ))}
               </div>
+            )}
+
+            {message.toolCalls && message.toolCalls.length > 0 && (
+              <details className={styles.counted}>
+                <summary>How this was counted</summary>
+                <ul>
+                  {message.toolCalls.map((call, i) => (
+                    <li key={i}>{describeToolCall(call)}</li>
+                  ))}
+                </ul>
+              </details>
             )}
 
             {message.followups && message.followups.length > 0 && index === messages.length - 1 && (

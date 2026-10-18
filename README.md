@@ -112,4 +112,39 @@ Tested against overhead retail interaction footage:
 
 ---
 
+## How AIsle checks its own answers
+
+*   **Clip reading.** Gemini reads each clip three times in parallel (`READS_PER_CLIP`). The stored outcome is the majority. Each read also records two plain observations, whether an item left the shelf and whether the shopper ends the clip holding one, and the outcome must agree with them. A clip whose reads disagree or contradict themselves is flagged, and the dashboard marks it "Check".
+*   **Copilot numbers.** Copilot answers through counting tools (`count_outcomes`, `count_behaviors`, `list_clips`, `get_clip`) called with Gemini function calling, so its numbers match the dashboard. Each answer lists the counts it ran.
+
+## Evaluation
+
+1.  Label the clips: start the backend in seed mode, serve `eval/` (`uv run python -m http.server 8765 --directory eval`), open `http://localhost:8765/label.html`, and save `labels.json` into `eval/`.
+2.  `uv run python -m scripts.eval_reader --repeats 3` compares the original single prompt, one structured read, and the verified reader against the labels.
+3.  `AISLE_DATA_SOURCE=seed uv run python -m scripts.eval_copilot` checks Copilot's numbers with and without tools.
+4.  `uv run python -m scripts.generate_benchmark_report` writes `docs/benchmarks/evaluation_report.md` from those results.
+
+Steps 2 and 3 call Gemini and need credentials.
+
+### Results (17 clips, labels from a frame-by-frame review, not human)
+
+| | gemini-2.5-flash (two runs) | gemini-3.8-flash |
+|---|---|---|
+| Clip outcome agreement, one read | 70%, 70% | 89% |
+| Clip outcome agreement, three reads | 85%, 67% | 89% |
+| Copilot numbers right, events in the prompt | 13 of 20, 18 of 20 | 20 of 20 |
+| Copilot numbers right, counting tools | 20 of 20, 19 of 20 | 20 of 20 |
+
+What this shows:
+
+*   On gemini-3.8-flash, three reads are no more accurate than one, and cost three times as much (`READS_PER_CLIP=1` turns them off). What they add is the review flag: they mark some clips a person should check (4 of 24 reads of clips that cannot be called), and a single read never flags anything.
+*   Copilot's counting tools match the dashboard on every question, and each answer lists the counts it ran. On gemini-3.8-flash the prompt-only design is equally accurate on 17 clips; the tools matter once the events no longer fit in the prompt.
+*   Results move between identical runs: three-read agreement on gemini-2.5-flash was 85% in one run and 67% in the next. Only 9 of the 17 clips can be called from the clip, so one clip changes a score by 11 points.
+*   8 clips end before the shopper is done, yet readers answer taken or put back. An explicit "cannot tell" outcome is the next fix.
+*   The 17 clips show about 6 shoppers in overlapping windows, so counts overstate shoppers.
+
+Raw results: `eval/results/` (gemini-3.8-flash) and `eval/results/gemini-2.5-flash/run1`, `run2`.
+
+---
+
 *Submitted for the Google AI Builder Cup (Retail & Commerce Track).*

@@ -115,6 +115,21 @@
   flex: none;
 }
 
+.counted {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.counted summary {
+  cursor: pointer;
+  width: fit-content;
+}
+
+.counted ul {
+  margin-top: 4px;
+  padding-left: 18px;
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;

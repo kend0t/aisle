@@ -70,6 +70,22 @@
   max-width: 60ch;
 }
 
+.review {
+  padding: 10px 12px;
+  border-left: 4px solid var(--tag);
+  background: var(--panel);
+  font-size: var(--text-s);
+}
+
+.review p {
+  font-weight: 600;
+}
+
+.review ul {
+  padding-left: 18px;
+  color: var(--ink-2);
+}
+
 .tags {
   list-style: none;
   display: flex;
