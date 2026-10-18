@@ -70,8 +70,9 @@ async function handleProxy(request: NextRequest, pathSegments: string[]) {
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
     console.error(`[API Proxy] Error forwarding to ${targetUrl}:`, errorMsg);
+    // The browser gets a plain reason; the target URL and Node error stay in the server log.
     return NextResponse.json(
-      { detail: `API proxy error: ${errorMsg}` },
+      { detail: "The backend is not reachable." },
       { status: 502 }
     );
   }

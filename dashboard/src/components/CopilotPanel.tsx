@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { ChatTurn } from "@/lib/api";
+import { isUnreachable, type ChatTurn } from "@/lib/api";
 import { useChat, useQuickPrompts } from "@/lib/queries";
 import ClipThumb from "./ClipThumb";
 import Markdown from "./Markdown";
@@ -76,7 +76,15 @@ export default function CopilotPanel({ expanded, sheetOpen, onHide, onCloseSheet
             },
           ]),
         onError: (err) =>
-          setMessages((prev) => [...prev, { role: "error", content: `No answer: ${err.message}` }]),
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "error",
+              content: isUnreachable(err)
+                ? "Copilot is offline. Check that the backend is running, then try again."
+                : `No answer: ${err.message}`,
+            },
+          ]),
       },
     );
   };

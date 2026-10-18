@@ -5,6 +5,9 @@ import { useState } from "react";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   // One client per browser session; useState keeps it stable across renders.
-  const [client] = useState(() => new QueryClient());
+  // One retry by default; the events query sets its own, since polling retries anyway.
+  const [client] = useState(
+    () => new QueryClient({ defaultOptions: { queries: { retry: 1 } } }),
+  );
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }

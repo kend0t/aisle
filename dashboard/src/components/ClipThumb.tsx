@@ -19,7 +19,7 @@ export default function ClipThumb({ eventId, size, onOpen }: Props) {
       className={`${styles.thumb} ${styles[size]}`}
       onClick={() => onOpen(eventId)}
       aria-label={`Play clip ${eventId}`}
-      title={`Play clip ${eventId}`}
+      title={failed ? `Play clip ${eventId}. Thumbnail not available.` : `Play clip ${eventId}`}
     >
       {!failed && (
         // eslint-disable-next-line @next/next/no-img-element -- served by the backend, not the Next image pipeline

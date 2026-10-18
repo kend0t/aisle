@@ -1,4 +1,4 @@
-import type { Finding, FindingSeverity, InsightsResponse } from "@/lib/api";
+import { errorMessage, type Finding, type FindingSeverity, type InsightsResponse } from "@/lib/api";
 import { zoneName } from "@/lib/format";
 import ClipThumb from "./ClipThumb";
 import styles from "./Findings.module.css";
@@ -20,8 +20,12 @@ const MAX_THUMBS = 4;
 
 interface Props {
   insights: InsightsResponse | null;
+  /** Clips have not loaded yet, so findings have not been asked for. */
+  waiting: boolean;
   loading: boolean;
-  failed: boolean;
+  /** Earlier findings are shown while new ones are read for changed clips. */
+  updating: boolean;
+  error: Error | null;
   onRetry: () => void;
   clipCount: number;
   onOpenClip: (eventId: string) => void;
@@ -30,40 +34,48 @@ interface Props {
 
 export default function Findings({
   insights,
+  waiting,
   loading,
-  failed,
+  updating,
+  error,
   onRetry,
   clipCount,
   onOpenClip,
   onSelectZone,
 }: Props) {
-  const showLoading = loading && !insights;
+  const showLoading = waiting || (loading && !insights);
+  const failed = error !== null && !loading;
 
   return (
-    <section className={styles.findings} aria-labelledby="findings-heading" aria-busy={showLoading}>
+    <section className={styles.findings} aria-labelledby="findings-heading" aria-busy={showLoading || updating}>
       <div className={styles.header}>
         <h2 id="findings-heading">What to look at</h2>
-        {insights && (
-          <p className={styles.source}>
-            {insights.source === "gemini"
-              ? `Gemini, ${insights.event_count} clips`
-              : "Rule-based, Gemini unavailable"}
-          </p>
-        )}
+        <p className={styles.source} aria-live="polite">
+          {updating
+            ? `Reading ${clipCount} clips again, about 30 s`
+            : insights
+              ? insights.source === "gemini"
+                ? `Gemini, ${insights.event_count} clips`
+                : "Rule-based, Gemini unavailable"
+              : null}
+        </p>
       </div>
 
       {showLoading && (
-        <div className={styles.loading}>
-          <p>Reading {clipCount} clips, about 30 s</p>
-          <span className={styles.skeleton} />
-          <span className={styles.skeleton} />
-          <span className={styles.skeleton} />
+        <div className={styles.loading} role="status">
+          <p>{waiting ? "Waiting for clips" : `Reading ${clipCount} clips, about 30 s`}</p>
+          <span className={`skeleton ${styles.skeleton}`} />
+          <span className={`skeleton ${styles.skeleton}`} />
+          <span className={`skeleton ${styles.skeleton}`} />
         </div>
       )}
 
-      {failed && !loading && !insights && (
-        <div className={styles.failed}>
-          <p>Findings did not load.</p>
+      {failed && (
+        <div className={styles.failed} role="alert">
+          <p>
+            {insights ? "Findings did not refresh. These are from earlier clips." : "Findings did not load."}{" "}
+            {errorMessage(error)}
+          </p>
           <button type="button" onClick={onRetry}>
             Try again
           </button>

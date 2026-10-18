@@ -126,6 +126,22 @@
   padding: 1px 0;
 }
 
+.thumbSkeleton {
+  flex: none;
+  width: 136px;
+  aspect-ratio: 920 / 680;
+  border-radius: var(--radius-s);
+}
+
+.lineSkeleton {
+  height: 16px;
+  width: 40%;
+}
+
+.long {
+  width: 85%;
+}
+
 .empty {
   color: var(--ink-2);
   padding: 24px 0;

@@ -140,6 +140,13 @@ video {
   line-height: 1;
 }
 
+/* Static placeholder while data loads. No shimmer: motion is only for user actions. */
+.skeleton {
+  display: block;
+  border-radius: var(--radius-m);
+  background: var(--panel);
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

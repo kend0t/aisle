@@ -11,6 +11,16 @@
   background: var(--shelf);
 }
 
+.right {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px 12px;
+  min-width: 0;
+  text-align: right;
+}
+
 .status {
   font-size: var(--text-s);
   color: var(--ink-2);
@@ -19,6 +29,24 @@
 .error {
   font-size: var(--text-s);
   color: var(--putback);
+}
+
+.retry {
+  flex: none;
+  padding: 4px 10px;
+  border-radius: var(--radius-m);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-size: var(--text-s);
+  font-weight: 600;
+}
+
+.retry:hover:not(:disabled) {
+  background: var(--panel);
+}
+
+.retry:disabled {
+  color: var(--ink-3);
+  cursor: default;
 }
 
 @media (max-width: 960px) {

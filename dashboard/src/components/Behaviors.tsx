@@ -3,6 +3,7 @@ import { countTags, humanize, TAG_LABEL } from "@/lib/format";
 import styles from "./Behaviors.module.css";
 
 interface Props {
+  loading: boolean;
   /** Events in the selected zone, or all events. */
   events: InteractionEvent[];
   tag: BehaviorTag | null;
@@ -16,17 +17,35 @@ const segments = [
 ] as const;
 
 /** What shoppers did at the shelf, split by what they left with. */
-export default function Behaviors({ events, tag, onSelectTag }: Props) {
+export default function Behaviors({ loading, events, tag, onSelectTag }: Props) {
   const rows = countTags(events);
-  if (rows.length === 0) return null;
-  const widest = rows[0].total;
+  if (!loading && rows.length === 0) return null;
+  const widest = rows[0]?.total ?? 0;
+
+  const header = (
+    <div className={styles.header}>
+      <h2 id="behaviors-heading">Behaviors</h2>
+      <p className={styles.note}>A clip can show more than one</p>
+    </div>
+  );
+
+  if (loading) {
+    return (
+      <section className={styles.behaviors} aria-labelledby="behaviors-heading" aria-busy="true">
+        {header}
+        <div className={styles.loading} role="status">
+          <span className="visually-hidden">Loading behaviors</span>
+          {[0, 1, 2, 3].map((i) => (
+            <span key={i} className={`skeleton ${styles.skeleton}`} />
+          ))}
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className={styles.behaviors} aria-labelledby="behaviors-heading">
-      <div className={styles.header}>
-        <h2 id="behaviors-heading">Behaviors</h2>
-        <p className={styles.note}>A clip can show more than one</p>
-      </div>
+      {header}
 
       <ul className={styles.rows}>
         {rows.map((row) => {

@@ -89,10 +89,7 @@
 }
 
 .skeleton {
-  display: block;
   height: 64px;
-  border-radius: var(--radius-m);
-  background: var(--panel);
 }
 
 .failed,

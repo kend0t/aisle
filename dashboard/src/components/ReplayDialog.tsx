@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { clipUrl, type InteractionEvent } from "@/lib/api";
+import type { InteractionEvent } from "@/lib/api";
 import { formatDate, formatSeconds, humanize, TAG_LABEL, zoneName } from "@/lib/format";
+import ClipPlayer from "./ClipPlayer";
 import OutcomeBadge from "./OutcomeBadge";
 import styles from "./ReplayDialog.module.css";
 
@@ -49,14 +50,7 @@ export default function ReplayDialog({ event, onClose }: Props) {
     >
       {event && (
         <div className={styles.layout}>
-          <video
-            key={event.event_id}
-            className={styles.video}
-            src={clipUrl(event.event_id)}
-            controls
-            preload="metadata"
-            playsInline
-          />
+          <ClipPlayer key={event.event_id} eventId={event.event_id} />
 
           <div className={styles.details}>
             <div className={styles.titleRow}>
