@@ -1,0 +1,39 @@
+.player {
+  position: relative;
+  background: #000000;
+}
+
+.video {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 920 / 680;
+  object-fit: contain;
+}
+
+/* Over the black video area in both themes, so the text colors are fixed. */
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+  background: #000000;
+  color: #e8ebee;
+  font-size: var(--text-s);
+}
+
+.overlay button {
+  padding: 6px 14px;
+  border-radius: var(--radius-m);
+  box-shadow: inset 0 0 0 1px rgba(232, 235, 238, 0.5);
+  font-weight: 600;
+  color: #e8ebee;
+}
+
+.overlay button:hover {
+  background: rgba(232, 235, 238, 0.12);
+}

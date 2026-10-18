@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ApiError, type BehaviorTag, type InteractionEvent, type Outcome } from "@/lib/api";
-import { useEvents, useInsights } from "@/lib/queries";
-import StatusBar from "./StatusBar";
+import { isUnreachable, type BehaviorTag, type InteractionEvent, type Outcome } from "@/lib/api";
+import { POLL_SECONDS, useEvents, useInsights, useOnline } from "@/lib/queries";
+import StatusBar, { type DataState } from "./StatusBar";
+import PageMessage from "./PageMessage";
+import SectionBoundary from "./SectionBoundary";
 import ShelfFunnel from "./ShelfFunnel";
 import ShelfMap from "./ShelfMap";
 import Findings from "./Findings";
@@ -18,8 +20,8 @@ import styles from "./Dashboard.module.css";
 const NO_EVENTS: InteractionEvent[] = [];
 
 export default function Dashboard() {
-  const eventsQuery = useEvents();
-  const insightsQuery = useInsights(eventsQuery.data);
+  const eventsQuery = useEvents();  const insightsQuery = useInsights(eventsQuery.data);
+  const online = useOnline();
   const events = eventsQuery.data ?? NO_EVENTS;
   const [zoneId, setZoneId] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<Outcome | "all">("all");
@@ -37,8 +39,19 @@ export default function Dashboard() {
 
   const ready = eventsQuery.data !== undefined;
   const error = eventsQuery.error;
-  // No HTTP status means the backend did not answer; a status means it answered with an error.
-  const offline = !(error instanceof ApiError && error.status !== undefined);
+  const unreachable = isUnreachable(error);
+  const retryEvents = () => void eventsQuery.refetch();
+
+  // Before the first load, a failure takes the whole page; after it, only the status line.
+  const dataState: DataState = !online
+    ? "offline"
+    : ready
+      ? error
+        ? "stale"
+        : "live"
+      : error
+        ? "idle"
+        : "loading";
 
   const toggleZone = (id: string) => setZoneId((current) => (current === id ? null : id));
 
@@ -46,55 +59,80 @@ export default function Dashboard() {
     <div className={`${styles.shell} ${copilotExpanded ? "" : styles.collapsed}`}>
       <div className={styles.main}>
         <StatusBar
-          failed={eventsQuery.isError}
+          state={dataState}
           updatedAt={eventsQuery.dataUpdatedAt}
+          unreachable={unreachable}
+          onRetry={retryEvents}
+          retrying={eventsQuery.isFetching}
         />
 
-        {error && !ready ? (
-          <section className={styles.offline} aria-live="polite">
-            <h1>{offline ? "Backend offline. Retrying." : "Data not available. Retrying."}</h1>
+        {!ready && !online ? (
+          <PageMessage title="No network connection.">
+            <p>Clips load when the connection comes back.</p>
+          </PageMessage>
+        ) : !ready && error ? (
+          <PageMessage
+            title={unreachable ? "Backend offline." : "Clips did not load."}
+            actions={
+              <button type="button" onClick={retryEvents} disabled={eventsQuery.isFetching}>
+                {eventsQuery.isFetching ? "Retrying" : "Retry now"}
+              </button>
+            }
+          >
             <p>{error.message}</p>
-            {offline && process.env.NODE_ENV === "development" && (
+            <p>Trying again every {POLL_SECONDS} s.</p>
+            {unreachable && process.env.NODE_ENV === "development" && (
               <p>
-                <code>uv run uvicorn backend_service.main:app --port 8000</code>
+                Start it with <code>uv run uvicorn backend_service.main:app --port 8000</code>
               </p>
             )}
-          </section>
+          </PageMessage>
         ) : (
           <main className={styles.content}>
-            <ShelfFunnel
-              loading={eventsQuery.isPending}
-              events={scoped}
-              zoneId={zoneId}
-              outcome={outcome}
-              onSelectOutcome={setOutcome}
-              onClearZone={() => setZoneId(null)}
-            />
+            <SectionBoundary name="Shelf funnel">
+              <ShelfFunnel
+                loading={eventsQuery.isPending}
+                events={scoped}
+                zoneId={zoneId}
+                outcome={outcome}
+                onSelectOutcome={setOutcome}
+                onClearZone={() => setZoneId(null)}
+              />
+            </SectionBoundary>
 
             <div className={styles.hero}>
-              <ShelfMap
-                ready={ready}
-                events={events}
-                selectedZone={zoneId}
-                attentionZones={attentionZones}
-                onSelectZone={toggleZone}
-              />
-              <div className={styles.side}>
-                <Findings
-                  insights={insightsQuery.data ?? null}
-                  loading={insightsQuery.isFetching}
-                  failed={insightsQuery.isError}
-                  onRetry={() => void insightsQuery.refetch()}
-                  clipCount={events.length}
-                  onOpenClip={setClipId}
-                  onSelectZone={setZoneId}
+              <SectionBoundary name="Shelf map">
+                <ShelfMap
+                  ready={ready}
+                  events={events}
+                  selectedZone={zoneId}
+                  attentionZones={attentionZones}
+                  onSelectZone={toggleZone}
                 />
-                <Behaviors events={scoped} tag={tag} onSelectTag={setTag} />
+              </SectionBoundary>
+              <div className={styles.side}>
+                <SectionBoundary name="Findings">
+                  <Findings
+                    insights={insightsQuery.data ?? null}
+                    waiting={!ready}
+                    loading={insightsQuery.isFetching}
+                    updating={insightsQuery.isFetching && insightsQuery.isPlaceholderData}
+                    error={insightsQuery.error}
+                    onRetry={() => void insightsQuery.refetch()}
+                    clipCount={events.length}
+                    onOpenClip={setClipId}
+                    onSelectZone={setZoneId}
+                  />
+                </SectionBoundary>
+                <SectionBoundary name="Behaviors">
+                  <Behaviors loading={!ready} events={scoped} tag={tag} onSelectTag={setTag} />
+                </SectionBoundary>
               </div>
             </div>
 
-            {ready && (
+            <SectionBoundary name="Clip list">
               <ClipLog
+                ready={ready}
                 events={events}
                 zoneId={zoneId}
                 outcome={outcome}
@@ -104,18 +142,20 @@ export default function Dashboard() {
                 onOutcomeChange={setOutcome}
                 onOpenClip={setClipId}
               />
-            )}
+            </SectionBoundary>
           </main>
         )}
       </div>
 
-      <CopilotPanel
-        expanded={copilotExpanded}
-        sheetOpen={sheetOpen}
-        onHide={() => setCopilotExpanded(false)}
-        onCloseSheet={() => setSheetOpen(false)}
-        onOpenClip={setClipId}
-      />
+      <SectionBoundary name="Copilot">
+        <CopilotPanel
+          expanded={copilotExpanded}
+          sheetOpen={sheetOpen}
+          onHide={() => setCopilotExpanded(false)}
+          onCloseSheet={() => setSheetOpen(false)}
+          onOpenClip={setClipId}
+        />
+      </SectionBoundary>
 
       <CopilotLauncher
         expanded={copilotExpanded}
@@ -127,7 +167,9 @@ export default function Dashboard() {
         }}
       />
 
-      <ReplayDialog event={openClip} onClose={() => setClipId(null)} />
+      <SectionBoundary name="Clip replay">
+        <ReplayDialog event={openClip} onClose={() => setClipId(null)} />
+      </SectionBoundary>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import styles from "./ClipLog.module.css";
 const FILTERS: (Outcome | "all")[] = ["all", "taken", "returned", "none"];
 
 interface Props {
+  ready: boolean;
   events: InteractionEvent[];
   zoneId: string | null;
   outcome: Outcome | "all";
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export default function ClipLog({
+  ready,
   events,
   zoneId,
   outcome,
@@ -34,6 +36,28 @@ export default function ClipLog({
   const shown = scoped.filter((e) => outcome === "all" || e.conversion_outcome === outcome);
   const counts = countOutcomes(scoped);
   const filterCount = { all: counts.total, taken: counts.taken, returned: counts.returned, none: counts.none };
+
+  if (!ready) {
+    return (
+      <section className={styles.log} aria-labelledby="clips-heading" aria-busy="true">
+        <div className={styles.header}>
+          <h2 id="clips-heading">Clips</h2>
+        </div>
+        <p className="visually-hidden">Loading the clip list</p>
+        <ul className={styles.rows} aria-hidden="true">
+          {[0, 1, 2].map((i) => (
+            <li key={i} className={styles.row}>
+              <span className={`skeleton ${styles.thumbSkeleton}`} />
+              <div className={styles.body}>
+                <span className={`skeleton ${styles.lineSkeleton}`} />
+                <span className={`skeleton ${styles.lineSkeleton} ${styles.long}`} />
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+    );
+  }
 
   return (
     <section className={styles.log} aria-labelledby="clips-heading">
@@ -74,7 +98,9 @@ export default function ClipLog({
         </div>
       </div>
 
-      {shown.length === 0 ? (
+      {events.length === 0 ? (
+        <p className={styles.empty}>No clips stored yet. New clips appear here as the camera sends them.</p>
+      ) : shown.length === 0 ? (
         <p className={styles.empty}>
           No clips match these filters.{" "}
           <button

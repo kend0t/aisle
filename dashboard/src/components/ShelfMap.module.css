@@ -91,6 +91,14 @@
   color: #1c2330;
 }
 
+/* Stands in for the counts while clips load. Labels are always light, so the color is fixed. */
+.labelPending {
+  display: block;
+  height: 64px;
+  border-radius: 2px;
+  background: #e6e9eb;
+}
+
 /* One line per outcome; taken and put back carry the outcome colors for a light surface. */
 .labelSplit {
   display: grid;
@@ -129,5 +137,9 @@
 
   .labelFigure {
     font-size: var(--text-xl);
+  }
+
+  .labelPending {
+    height: 40px;
   }
 }

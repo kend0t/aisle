@@ -24,6 +24,21 @@ export class ApiError extends Error {
   ) {
     super(message);
   }
+
+  /** True when the backend did not answer, directly or through the proxy. */
+  get unreachable(): boolean {
+    return this.status === undefined || this.status === 502 || this.status === 503 || this.status === 504;
+  }
+}
+
+/** Errors thrown in client components can be any value. */
+export function errorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message;
+  return typeof error === "string" && error ? error : "No details were given.";
+}
+
+export function isUnreachable(error: unknown): boolean {
+  return error instanceof ApiError && error.unreachable;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {

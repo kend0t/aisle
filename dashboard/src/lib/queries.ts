@@ -1,9 +1,13 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useSyncExternalStore } from "react";
 import { api, type ChatTurn, type InteractionEvent } from "./api";
 
 const POLL_MS = 8000;
+
+/** The poll interval in seconds, for messages that say how often a failed load is tried again. */
+export const POLL_SECONDS = POLL_MS / 1000;
 
 /** Stored events, polled. The backend answers 304 when nothing changed. */
 export function useEvents() {
@@ -45,4 +49,18 @@ export function useChat() {
     mutationFn: ({ message, history }: { message: string; history: ChatTurn[] }) =>
       api.chat(message, history),
   });
+}
+
+function subscribeOnline(onChange: () => void) {
+  window.addEventListener("online", onChange);
+  window.addEventListener("offline", onChange);
+  return () => {
+    window.removeEventListener("online", onChange);
+    window.removeEventListener("offline", onChange);
+  };
+}
+
+/** The browser's network status. Queries pause while offline and resume on their own. */
+export function useOnline(): boolean {
+  return useSyncExternalStore(subscribeOnline, () => navigator.onLine, () => true);
 }

@@ -47,11 +47,13 @@ export default function ShelfFunnel({ loading, events, zoneId, outcome, onSelect
 
   if (loading && events.length === 0) {
     return (
-      <section className={styles.funnel} aria-busy="true" aria-label="Loading">
-        <div className={styles.skeleton}>
-          <span />
-          <span />
-          <span />
+      <section className={styles.funnel} aria-busy="true">
+        {heading}
+        <div className={styles.skeleton} role="status">
+          <span className="visually-hidden">Loading clips</span>
+          <span className="skeleton" />
+          <span className="skeleton" />
+          <span className="skeleton" />
         </div>
       </section>
     );

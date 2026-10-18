@@ -18,7 +18,7 @@ export default function ShelfMap({ ready, events, selectedZone, attentionZones, 
   }));
 
   return (
-    <figure className={styles.map} aria-label="Shelf map. Select a zone to filter.">
+    <figure className={styles.map} aria-label="Shelf map. Select a zone to filter." aria-busy={!ready}>
       <div className={styles.frame}>
         {/* eslint-disable-next-line @next/next/no-img-element -- fixed-size local still, no optimization needed */}
         <img
@@ -41,6 +41,21 @@ export default function ShelfMap({ ready, events, selectedZone, attentionZones, 
             />
           ))}
         </svg>
+
+        {/* Until clips load, labels show the zone name over a blank block, not zeros. */}
+        {!ready && zones.map(({ zone }) => {
+          const [cx, cy] = zoneCentroid(zone);
+          return (
+            <div
+              key={zone.id}
+              className={styles.label}
+              style={{ left: `${(cx / FRAME_WIDTH) * 100}%`, top: `${(cy / FRAME_HEIGHT) * 100}%` }}
+            >
+              <span className={styles.labelName}>{zone.name}</span>
+              <span className={styles.labelPending} />
+            </div>
+          );
+        })}
 
         {ready && zones.map(({ zone, counts }) => {
           const [cx, cy] = zoneCentroid(zone);

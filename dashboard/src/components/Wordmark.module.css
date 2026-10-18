@@ -1,4 +1,6 @@
 .wordmark {
+  flex: none;
+  white-space: nowrap;
   font-weight: 850;
   font-size: var(--text-l);
   letter-spacing: -0.01em;
