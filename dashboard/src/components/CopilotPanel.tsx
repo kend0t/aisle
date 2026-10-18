@@ -24,6 +24,9 @@ interface Props {
   onOpenClip: (eventId: string) => void;
 }
 
+/** Starter chips show the short title and send the full question. */
+const STARTERS = 3;
+
 function toHistory(messages: Message[]): ChatTurn[] {
   return messages
     .filter((m): m is Message & { role: "user" | "assistant" } => m.role !== "error")
@@ -124,12 +127,6 @@ export default function CopilotPanel({ expanded, sheetOpen, onHide, onCloseSheet
       </div>
 
       <div className={styles.body} ref={scrollRef} aria-live="polite">
-        {messages.length === 0 && (
-          <p className={styles.empty}>
-            Gemini answers from the clips on this page and links every clip it cites.
-          </p>
-        )}
-
         {messages.map((message, index) => (
           <div key={index} className={`${styles.message} ${styles[message.role]}`}>
             {message.role === "assistant" ? (
@@ -174,14 +171,21 @@ export default function CopilotPanel({ expanded, sheetOpen, onHide, onCloseSheet
       </div>
 
       <div className={styles.footer}>
-        {messages.length === 0 && quickPrompts.length > 0 && (
-          <div className={styles.chips}>
-            {quickPrompts.map((qp) => (
-              <button key={qp.id} type="button" onClick={() => ask(qp.prompt)}>
-                {qp.prompt}
-              </button>
-            ))}
-          </div>
+        {messages.length === 0 && (
+          <>
+            <p className={styles.empty}>
+              Gemini answers from the clips on this page and links every clip it cites.
+            </p>
+            {quickPrompts.length > 0 && (
+              <div className={styles.chips}>
+                {quickPrompts.slice(0, STARTERS).map((qp) => (
+                  <button key={qp.id} type="button" title={qp.prompt} onClick={() => ask(qp.prompt)}>
+                    {qp.title}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
         )}
 
         <form

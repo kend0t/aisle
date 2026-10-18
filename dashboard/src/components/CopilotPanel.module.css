@@ -60,9 +60,6 @@
 }
 
 .empty {
-  margin: auto 0;
-  padding: 0 12px;
-  text-align: center;
   font-size: var(--text-s);
   color: var(--ink-3);
 }

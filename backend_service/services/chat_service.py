@@ -28,11 +28,12 @@ Instructions for Answers:
 """
 
 CURATED_QUICK_PROMPTS: List[QuickPrompt] = [
+    # The dashboard shows the first three as starter chips.
     QuickPrompt(
-        id="cereal_abandonment",
-        title="Cereal put-backs",
-        prompt="Why are shoppers putting items back at the cereal bay, and what did they do before putting them back?",
-        icon="📉",
+        id="putback_behaviors",
+        title="What comes before a put-back",
+        prompt="Which behaviors did shoppers show before putting an item back, and what could change at the shelf?",
+        icon="↩️",
         category="Conversion & Loss",
     ),
     QuickPrompt(
@@ -50,10 +51,10 @@ CURATED_QUICK_PROMPTS: List[QuickPrompt] = [
         category="Shopper Behavior",
     ),
     QuickPrompt(
-        id="putback_behaviors",
-        title="What comes before a put-back",
-        prompt="Which behaviors did shoppers show before putting an item back, and what could change at the shelf?",
-        icon="↩️",
+        id="cereal_abandonment",
+        title="Cereal put-backs",
+        prompt="Why are shoppers putting items back at the cereal bay, and what did they do before putting them back?",
+        icon="📉",
         category="Conversion & Loss",
     ),
     QuickPrompt(

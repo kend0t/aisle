@@ -93,6 +93,12 @@ export default function ReplayDialog({ event, onClose }: Props) {
                   <dd>{formatSeconds(event.gemini_latency_ms)}</dd>
                 </div>
               ) : null}
+              {event.total_latency_ms ? (
+                <div title="From clip upload to stored record">
+                  <dt>Total time</dt>
+                  <dd>{formatSeconds(event.total_latency_ms)}</dd>
+                </div>
+              ) : null}
               <div>
                 <dt>Date</dt>
                 <dd>{formatDate(event.timestamp)}</dd>
