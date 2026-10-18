@@ -1,7 +1,10 @@
 import os
 from functools import lru_cache
-from typing import Optional
+from typing import Literal, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# GCP_PROJECT_ID value that means "no real project": Gemini runs in mock mode.
+MOCK_PROJECT_ID = "mock-gcp-project"
 
 # Ensure robust GRPC resolution on macOS
 os.environ.setdefault("GRPC_DNS_RESOLVER", "native")
@@ -12,11 +15,16 @@ class Settings(BaseSettings):
     """Application configuration loaded from environment variables."""
 
     # GCP Core
-    GCP_PROJECT_ID: str = os.getenv("GCP_PROJECT_ID", "mock-gcp-project")
+    GCP_PROJECT_ID: str = os.getenv("GCP_PROJECT_ID", MOCK_PROJECT_ID)
     GCP_REGION: str = os.getenv("GCP_REGION", "us-central1")
     GCS_BUCKET_NAME: str = os.getenv("GCS_BUCKET_NAME", "aisle-interaction-clips")
     FIRESTORE_DATABASE: str = os.getenv("FIRESTORE_DATABASE", "(default)")
     FIRESTORE_COLLECTION: str = os.getenv("FIRESTORE_COLLECTION", "interaction_events")
+
+    # Where events and clips come from. "firestore" uses Firestore and Cloud Storage and
+    # fails loudly when they fail. "seed" serves the bundled benchmark events from memory
+    # and stores uploads on local disk, for offline work and tests.
+    AISLE_DATA_SOURCE: Literal["firestore", "seed"] = "firestore"
 
     # Vertex AI / Gemini
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")

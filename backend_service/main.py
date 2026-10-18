@@ -1,9 +1,12 @@
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from backend_service.api.routes import router as api_router
 from backend_service.config import get_settings
+from backend_service.dependencies import build_services
+from backend_service.errors import DataSourceError, ServiceError
 
 settings = get_settings()
 
@@ -18,7 +21,19 @@ logger = logging.getLogger("aisle.backend")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Initializing AIsle Backend Service (Env: %s)", settings.ENVIRONMENT)
-    logger.info("Target GCP Project: %s, Region: %s", settings.GCP_PROJECT_ID, settings.GCP_REGION)
+    logger.info(
+        "Target GCP Project: %s, Region: %s, Data source: %s",
+        settings.GCP_PROJECT_ID,
+        settings.GCP_REGION,
+        settings.AISLE_DATA_SOURCE,
+    )
+    try:
+        app.state.services = build_services(settings)
+    except DataSourceError as e:
+        logger.critical(
+            "%s. Check the GCP credentials, or set AISLE_DATA_SOURCE=seed to run offline.", e
+        )
+        raise
     yield
     logger.info("Shutting down AIsle Backend Service...")
 
@@ -44,6 +59,13 @@ app.add_middleware(
 
 # Include API Router
 app.include_router(api_router)
+
+
+@app.exception_handler(ServiceError)
+def service_error_handler(request: Request, exc: ServiceError) -> JSONResponse:
+    """Firestore, Cloud Storage or Gemini failed: say which, log the full cause."""
+    logger.error("%s %s: %s", request.method, request.url.path, exc, exc_info=exc.cause)
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.public_detail})
 
 
 @app.get("/health", tags=["System"])

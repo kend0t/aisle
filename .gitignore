@@ -50,3 +50,6 @@ docs/setup/
 DEVELOPER_SETUP.md
 
 
+
+# Browser automation output
+.playwright-mcp/

@@ -1,15 +1,9 @@
 import os
 from pathlib import Path
-import pytest
-from fastapi.testclient import TestClient
-
-from backend_service.main import app
 from camera_node.simulator import generate_synthetic_retail_clip
 
-client = TestClient(app)
 
-
-def test_health_check():
+def test_health_check(client):
     """Verify backend health check returns 200 OK and expected keys."""
     response = client.get("/health")
     assert response.status_code == 200
@@ -18,7 +12,7 @@ def test_health_check():
     assert data["service"] == "aisle-backend"
 
 
-def test_mock_trigger_endpoint():
+def test_mock_trigger_endpoint(client):
     """Test rapid simulation trigger."""
     response = client.post("/api/v1/events/mock-trigger?zone_id=endcap_promo_A&dwell_time=9")
     assert response.status_code == 200
@@ -30,7 +24,7 @@ def test_mock_trigger_endpoint():
     assert "behavioral_summary" in event
 
 
-def test_clip_upload_and_analysis_pipeline(tmp_path: Path):
+def test_clip_upload_and_analysis_pipeline(client, tmp_path: Path):
     """Test full upload, video processing, and persistence pipeline."""
     clip_path = tmp_path / "test_interaction.mp4"
     generate_synthetic_retail_clip(output_path=str(clip_path), duration_seconds=3, fps=15)
@@ -55,7 +49,7 @@ def test_clip_upload_and_analysis_pipeline(tmp_path: Path):
     assert len(event["behavioral_summary"]) > 0
 
 
-def test_events_query_and_analytics_summary():
+def test_events_query_and_analytics_summary(client):
     """Verify events can be listed and analytics summary aggregates metrics."""
     # List events
     res_list = client.get("/api/v1/events")
@@ -71,3 +65,53 @@ def test_events_query_and_analytics_summary():
     assert "conversion_rate" in summary
     assert "abandonment_rate" in summary
     assert "average_dwell_time_seconds" in summary
+
+
+def test_behavior_tags_default_and_filtering():
+    """Unknown tags are dropped and duplicates collapse; missing tags default to empty."""
+    from backend_service.models.interaction_event import InteractionEvent
+
+    base = {
+        "event_id": "evt_tags",
+        "zone_id": "left_bay_cereal",
+        "zone_dwell_time_seconds": 4,
+        "interaction_type": "examined",
+        "conversion_outcome": "returned",
+        "product_category_engaged": "cereal",
+        "behavioral_summary": "Picked up a box and put it back.",
+    }
+    assert InteractionEvent.model_validate(base).behavior_tags == []
+
+    tagged = InteractionEvent.model_validate(
+        {**base, "behavior_tags": ["Phone_Check", "made_up", "phone_check", "hesitated"]}
+    )
+    assert tagged.behavior_tags == ["phone_check", "hesitated"]
+
+
+def test_insights_endpoint_offline(client):
+    """Offline mode returns rule-based findings whose evidence IDs all exist."""
+    response = client.get("/api/v1/insights")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["source"] == "rules"
+    assert 1 <= len(data["findings"]) <= 3
+
+    known_ids = {e["event_id"] for e in client.get("/api/v1/events?limit=500").json()}
+    for finding in data["findings"]:
+        assert finding["title"]
+        assert finding["action"]
+        assert finding["severity"] in ("act", "watch", "info")
+        assert set(finding["evidence_event_ids"]) <= known_ids
+
+
+def test_thumbnail_unknown_event_returns_404(client):
+    response = client.get("/api/v1/events/evt_does_not_exist/thumbnail")
+    assert response.status_code == 404
+
+
+def test_chat_drops_citations_to_missing_events(client):
+    """Simulated replies cite IDs that are not stored; they must not reach the client."""
+    response = client.post("/api/v1/chat", json={"message": "Why is cereal abandoned?"})
+    assert response.status_code == 200
+    known_ids = {e["event_id"] for e in client.get("/api/v1/events?limit=500").json()}
+    assert set(response.json()["referenced_events"]) <= known_ids

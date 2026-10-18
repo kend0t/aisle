@@ -1,0 +1,86 @@
+.shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--copilot-width);
+  min-height: 100vh;
+  /* The panel keeps its width while its column closes; clip it without breaking sticky. */
+  overflow-x: clip;
+  transition: grid-template-columns 200ms ease;
+}
+
+.collapsed {
+  grid-template-columns: minmax(0, 1fr) 0;
+}
+
+.main {
+  min-width: 0;
+  /* Lets the funnel's floor grid span this column with cqw units. */
+  container-type: inline-size;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  padding: 32px var(--gutter) 96px;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(280px, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  min-width: 0;
+}
+
+.offline {
+  max-width: 64ch;
+  margin: 80px auto;
+  padding: 0 var(--gutter);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: var(--ink-2);
+}
+
+.offline h1 {
+  color: var(--ink);
+  font-size: var(--text-xl);
+}
+
+.offline code {
+  font-size: var(--text-s);
+  background: var(--panel);
+  padding: 2px 6px;
+  border-radius: var(--radius-s);
+}
+
+@media (max-width: 1180px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 960px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .content {
+    padding: 24px 16px 96px;
+    gap: 32px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell {
+    transition: none;
+  }
+}

@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Optional
-from pydantic import BaseModel, Field
+from typing import List, Optional
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class InteractionType(str, Enum):
@@ -24,8 +24,65 @@ class EstimatedDemographic(str, Enum):
     UNKNOWN = "unknown"
 
 
+class BehaviorTag(str, Enum):
+    PHONE_CHECK = "phone_check"
+    COMPARED_ALTERNATIVES = "compared_alternatives"
+    LOW_SHELF_REACH = "low_shelf_reach"
+    LABEL_INSPECTION = "label_inspection"
+    CARRIED_BASKET = "carried_basket"
+    HESITATED = "hesitated"
+
+
+BEHAVIOR_TAG_VALUES = {tag.value for tag in BehaviorTag}
+
+
+def filter_behavior_tags(tags: object) -> List[str]:
+    """Keeps known behavior tags in first-seen order and drops anything else."""
+    if not isinstance(tags, list):
+        return []
+    cleaned = [str(t).strip().lower() for t in tags]
+    return list(dict.fromkeys(t for t in cleaned if t in BEHAVIOR_TAG_VALUES))
+
+
+class ClipAnalysis(BaseModel):
+    """What Gemini reads from one clip. Gemini output is shaped to this schema;
+    event_id, zone_id, timestamp and provenance are added in code.
+
+    Field order matters: Gemini writes fields in schema order, so it describes the clip
+    before it classifies it.
+    """
+
+    behavioral_summary: str = Field(
+        description="1-2 sentences on movement, hesitation, every item picked up, and what happened to it"
+    )
+    behavior_tags: List[BehaviorTag] = Field(
+        description="Behaviors clearly visible in the clip; empty when none apply"
+    )
+    interaction_type: InteractionType = Field(
+        description=(
+            "passed_by: walked through without stopping. browsed: stopped and looked, no contact. "
+            "examined: picked up an item to inspect it. compared: picked up several items or "
+            "looked back and forth between alternatives."
+        )
+    )
+    conversion_outcome: ConversionOutcome = Field(
+        description=(
+            "taken: the shopper leaves with an item (cart, basket or hand). returned: the shopper "
+            "picked up an item and put it back, and leaves without it. none: the shopper never "
+            "picked up an item."
+        )
+    )
+    zone_dwell_time_seconds: int = Field(description="Total seconds the shopper stayed in the zone")
+    product_category_engaged: str = Field(description="Shelf section or product the shopper engaged with")
+    shopper_group_size: int = Field(description="Number of shoppers interacting together")
+    estimated_demographic: EstimatedDemographic
+
+
 class InteractionEvent(BaseModel):
     """Structured interaction metric extracted from video clips via Gemini 1.5."""
+
+    # Response model: fields with defaults are always sent, so the OpenAPI schema marks them required.
+    model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     event_id: str = Field(..., description="Unique event identifier or clip ID")
     timestamp: str = Field(
@@ -54,6 +111,10 @@ class InteractionEvent(BaseModel):
     behavioral_summary: str = Field(
         ..., description="Concise qualitative narrative describing customer actions"
     )
+    behavior_tags: List[BehaviorTag] = Field(
+        default_factory=list,
+        description="Observed shopper behaviors from the fixed BehaviorTag vocabulary",
+    )
 
     # Optional cloud provenance fields
     video_uri: Optional[str] = Field(
@@ -73,6 +134,11 @@ class InteractionEvent(BaseModel):
         description="Timestamp when record was committed to Firestore",
     )
 
+    @field_validator("behavior_tags", mode="before")
+    @classmethod
+    def _keep_known_tags(cls, value: object) -> List[str]:
+        return filter_behavior_tags(value)
+
 
 class ProcessClipRequest(BaseModel):
     """Payload to trigger multimodal analysis on a staged video clip."""
@@ -88,6 +154,8 @@ class ProcessClipRequest(BaseModel):
 
 
 class ProcessClipResponse(BaseModel):
+    model_config = ConfigDict(json_schema_serialization_defaults_required=True)
+
     status: str
     event: InteractionEvent
     firestore_id: Optional[str] = None

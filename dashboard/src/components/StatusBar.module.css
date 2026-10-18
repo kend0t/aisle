@@ -1,0 +1,28 @@
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 14px var(--gutter);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--shelf);
+}
+
+.status {
+  font-size: var(--text-s);
+  color: var(--ink-2);
+}
+
+.error {
+  font-size: var(--text-s);
+  color: var(--putback);
+}
+
+@media (max-width: 960px) {
+  .bar {
+    padding: 12px 16px;
+  }
+}

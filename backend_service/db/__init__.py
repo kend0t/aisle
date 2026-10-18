@@ -1,3 +1,15 @@
-from .firestore_client import FirestoreRepository
+from .firestore_client import (
+    EventRepository,
+    FirestoreEventRepository,
+    InMemoryEventRepository,
+    build_repository,
+    summarize,
+)
 
-__all__ = ["FirestoreRepository"]
+__all__ = [
+    "EventRepository",
+    "FirestoreEventRepository",
+    "InMemoryEventRepository",
+    "build_repository",
+    "summarize",
+]

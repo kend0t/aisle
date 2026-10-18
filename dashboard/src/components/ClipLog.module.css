@@ -1,0 +1,146 @@
+.log {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.header h2 {
+  font-size: var(--text-l);
+}
+
+.count {
+  color: var(--ink-3);
+  font-weight: 400;
+  margin-left: 4px;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-radius: var(--radius-m);
+  background: var(--tag);
+  color: var(--tag-ink);
+  font-size: var(--text-s);
+  font-weight: 600;
+}
+
+.segmented {
+  display: flex;
+  padding: 3px;
+  gap: 2px;
+  border-radius: var(--radius-m);
+  background: var(--panel);
+}
+
+.segmented button {
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: var(--text-s);
+  color: var(--ink-2);
+}
+
+.segmented button[aria-checked="true"] {
+  background: var(--shelf);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.rows {
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.topline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 16px;
+  font-size: var(--text-s);
+  color: var(--ink-2);
+}
+
+.filterCount {
+  color: var(--ink-3);
+  font-feature-settings: "tnum";
+}
+
+.summary {
+  max-width: 75ch;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  font-size: var(--text-xs);
+}
+
+.tag {
+  padding: 1px 8px;
+  border-radius: var(--radius-s);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink-2);
+}
+
+.product {
+  color: var(--ink-3);
+  padding: 1px 0;
+}
+
+.empty {
+  color: var(--ink-2);
+  padding: 24px 0;
+}
+
+.empty button {
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 640px) {
+  .row {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+}
