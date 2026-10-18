@@ -47,17 +47,22 @@ Both themes follow `prefers-color-scheme`. Add new colors as tokens in both them
 - Gemini text is kept short at the source: findings carry a title and an `action` of 15 words or fewer. Long summaries are clamped in lists and shown in full in the replay.
 
 ### Numbers
-- Counts first, percentages second. Write "5 put back" large and "36% of picked up" small.
+- Counts first, percentages second. Write "5 put back" large and "36%" small, with the base stated once near the chart.
 - Every percentage states its base. Use one base per view.
-- The shelf funnel is the main metric: stopped, then picked up or no pick-up, then taken or put back. Band size is proportional to the count. It follows the selected zone, and its bands filter the clip list.
+- The shelf funnel is the main metric, in three columns read left to right: stopped, picked up, outcome. The outcome column holds taken, put back and no pick-up; no pick-up skips the picked-up column. Band size is proportional to the count, and percentages are of picked up. It follows the selected zone, and its bands filter the clip list.
+- Every count has a period: the line under the page title states the shopper count and the date range of the clips in view.
+- Zone labels on the shelf map carry the full split (stopped, taken, put back, no pick-up). The map has no data fill; the outline marks hover and selection only.
+- Behaviors are stacked bars in the three outcome colors, one row per behavior, widths relative to the most frequent behavior. A clip can count under several behaviors, so the rows do not sum to the total. Rows filter the clip list.
+- Engineering numbers (Gemini read time, total time) stay in the replay dialog, not on the main view.
 
 ### Motion
 - Only in response to a user action: opening a clip, choosing a zone, hover on a control.
 - Respect `prefers-reduced-motion` (handled globally in `globals.css`).
 
 ### Layout
-- Order: shelf funnel, then the overhead shelf map with findings, then the clip list. Every number links to the clips behind it.
-- Copilot is an always-visible side panel on wide screens and a bottom sheet under 960px.
+- Order: title with the orientation line, shelf funnel, then the overhead shelf map beside findings and behaviors, then the clip list. Every number links to the clips behind it.
+- The orientation line is always shown: one sentence on what the camera and Gemini do, then the count and date range.
+- Copilot is a side panel on wide screens that hides to a floating button, and a bottom sheet under 960px. Its empty state is one line and three short starter chips next to the input.
 - Must work at 390px width without horizontal scrolling.
 
 ## 3. Component Architecture
