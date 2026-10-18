@@ -110,19 +110,19 @@ class InsightsService:
                 )
             )
 
-        phone = [
+        hesitated = [
             e for e in events
-            if BehaviorTag.PHONE_CHECK in e.behavior_tags
+            if BehaviorTag.HESITATED in e.behavior_tags
         ]
-        if phone:
-            put_back = sum(1 for e in phone if e.conversion_outcome != ConversionOutcome.TAKEN)
+        if hesitated:
+            put_back = sum(1 for e in hesitated if e.conversion_outcome != ConversionOutcome.TAKEN)
             findings.append(
                 Finding(
-                    title=f"{len(phone)} shoppers checked a phone at the shelf",
-                    action="Check that shelf prices are visible and current.",
-                    detail=f"{put_back} of them left without the item.",
+                    title=f"{len(hesitated)} shoppers hesitated before deciding",
+                    action="Check product labeling, clarity, and pricing contrast.",
+                    detail=f"{put_back} of them left without taking the item.",
                     severity=FindingSeverity.WATCH,
-                    evidence_event_ids=[e.event_id for e in phone],
+                    evidence_event_ids=[e.event_id for e in hesitated],
                 )
             )
 

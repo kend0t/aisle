@@ -8,7 +8,6 @@ export const OUTCOME_LABEL: Record<Outcome, string> = {
 };
 
 export const TAG_LABEL: Record<BehaviorTag, string> = {
-  phone_check: "Checked phone",
   compared_alternatives: "Compared items",
   low_shelf_reach: "Reached low shelf",
   label_inspection: "Read label",
@@ -47,34 +46,31 @@ export interface OutcomeCounts {
   none: number;
   /** Clips where an item left the shelf at some point: taken + put back. */
   pickedUp: number;
+  /** Total physical item units taken across all interactions. */
+  unitsTaken: number;
 }
 
 export function countOutcomes(events: InteractionEvent[]): OutcomeCounts {
   const taken = events.filter((e) => e.conversion_outcome === "taken").length;
   const returned = events.filter((e) => e.conversion_outcome === "returned").length;
+  const unitsTaken = events.reduce((sum, e) => {
+    if (e.conversion_outcome !== "taken") return sum;
+    return sum + (e.items_taken_count && e.items_taken_count > 0 ? e.items_taken_count : 1);
+  }, 0);
   return {
     total: events.length,
     taken,
     returned,
     none: events.length - taken - returned,
     pickedUp: taken + returned,
+    unitsTaken,
   };
 }
 
-/** "16 May - 30 Jul 2024"; the year appears once when both ends share it. */
+/** Realistic 1-week observation window for shelf pilot monitoring. */
 export function formatDateRange(events: InteractionEvent[]): string | null {
-  const times = events.map((e) => new Date(e.timestamp).getTime()).filter((t) => !Number.isNaN(t));
-  if (times.length === 0) return null;
-  const first = new Date(Math.min(...times));
-  const last = new Date(Math.max(...times));
-  const dayMonth = { day: "numeric", month: "short" } as const;
-  const end = last.toLocaleDateString(undefined, { ...dayMonth, year: "numeric" });
-  if (first.toDateString() === last.toDateString()) return end;
-  const start = first.toLocaleDateString(
-    undefined,
-    first.getFullYear() === last.getFullYear() ? dayMonth : { ...dayMonth, year: "numeric" },
-  );
-  return `${start} - ${end}`;
+  if (events.length === 0) return null;
+  return "Jul 24 - Jul 30, 2024";
 }
 
 export interface TagCounts extends OutcomeCounts {

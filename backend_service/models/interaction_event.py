@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from enum import Enum
 from typing import List, Optional
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class InteractionType(str, Enum):
@@ -25,7 +25,6 @@ class EstimatedDemographic(str, Enum):
 
 
 class BehaviorTag(str, Enum):
-    PHONE_CHECK = "phone_check"
     COMPARED_ALTERNATIVES = "compared_alternatives"
     LOW_SHELF_REACH = "low_shelf_reach"
     LABEL_INSPECTION = "label_inspection"
@@ -72,6 +71,11 @@ class ClipAnalysis(BaseModel):
             "picked up an item."
         )
     )
+    items_taken_count: int = Field(
+        default=0,
+        ge=0,
+        description="Exact count of physical product items taken/purchased (0 if returned or none, 1 or more if taken)",
+    )
     zone_dwell_time_seconds: int = Field(description="Total seconds the shopper stayed in the zone")
     product_category_engaged: str = Field(description="Shelf section or product the shopper engaged with")
     shopper_group_size: int = Field(description="Number of shoppers interacting together")
@@ -98,6 +102,11 @@ class InteractionEvent(BaseModel):
     )
     conversion_outcome: ConversionOutcome = Field(
         ..., description="Outcome of product engagement (taken, returned, none)"
+    )
+    items_taken_count: int = Field(
+        default=0,
+        ge=0,
+        description="Exact count of physical product items taken/purchased (0 if returned or none, 1 or more if taken)",
     )
     product_category_engaged: str = Field(
         ..., description="Shelf section or product description engaged with"
@@ -138,6 +147,14 @@ class InteractionEvent(BaseModel):
     @classmethod
     def _keep_known_tags(cls, value: object) -> List[str]:
         return filter_behavior_tags(value)
+
+    @model_validator(mode="after")
+    def _validate_items_taken_count(self) -> "InteractionEvent":
+        if self.conversion_outcome == ConversionOutcome.TAKEN and self.items_taken_count <= 0:
+            self.items_taken_count = 1
+        elif self.conversion_outcome != ConversionOutcome.TAKEN:
+            self.items_taken_count = 0
+        return self
 
 
 class ProcessClipRequest(BaseModel):

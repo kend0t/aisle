@@ -27,7 +27,8 @@ class Settings(BaseSettings):
     AISLE_DATA_SOURCE: Literal["firestore", "seed"] = "firestore"
 
     # Vertex AI / Gemini
-    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+    GEMINI_LOCATION: Optional[str] = os.getenv("GEMINI_LOCATION", "global")
     GEMINI_API_KEY: Optional[str] = os.getenv("GEMINI_API_KEY", None)
     GOOGLE_APPLICATION_CREDENTIALS: Optional[str] = os.getenv(
         "GOOGLE_APPLICATION_CREDENTIALS", None

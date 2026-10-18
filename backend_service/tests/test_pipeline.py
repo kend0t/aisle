@@ -83,9 +83,9 @@ def test_behavior_tags_default_and_filtering():
     assert InteractionEvent.model_validate(base).behavior_tags == []
 
     tagged = InteractionEvent.model_validate(
-        {**base, "behavior_tags": ["Phone_Check", "made_up", "phone_check", "hesitated"]}
+        {**base, "behavior_tags": ["Label_Inspection", "made_up", "label_inspection", "hesitated"]}
     )
-    assert tagged.behavior_tags == ["phone_check", "hesitated"]
+    assert tagged.behavior_tags == ["label_inspection", "hesitated"]
 
 
 def test_insights_endpoint_offline(client):

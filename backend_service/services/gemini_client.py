@@ -30,8 +30,16 @@ class GeminiClient:
         from google import genai
 
         if settings.GCP_PROJECT_ID and settings.GCP_PROJECT_ID != MOCK_PROJECT_ID:
+            location = settings.GEMINI_LOCATION or settings.GCP_REGION
+            # Vertex AI routing:
+            # - gemini-3.8 family is deployed on the global endpoint
+            # - Pro models are routed to us-central1 if regional location lacks quota/deployment
+            if "3.8" in settings.GEMINI_MODEL.lower():
+                location = "global"
+            elif "pro" in settings.GEMINI_MODEL.lower() and location in ("asia-southeast1", "asia-east1"):
+                location = "us-central1"
             self._client = genai.Client(
-                vertexai=True, project=settings.GCP_PROJECT_ID, location=settings.GCP_REGION
+                vertexai=True, project=settings.GCP_PROJECT_ID, location=location
             )
             self.mode = "vertex"
         elif settings.GEMINI_API_KEY:

@@ -97,6 +97,11 @@ export default function ClipLog({
               <div className={styles.body}>
                 <div className={styles.topline}>
                   <OutcomeBadge outcome={event.conversion_outcome} />
+                  {event.conversion_outcome === "taken" && (event.items_taken_count ?? 1) > 1 && (
+                    <span className={styles.product}>
+                      {event.items_taken_count} units taken
+                    </span>
+                  )}
                   <span>{zoneName(event.zone_id)}</span>
                   <span>{event.zone_dwell_time_seconds} s at shelf</span>
                 </div>

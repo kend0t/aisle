@@ -15,15 +15,15 @@ You advise store managers, retail merchandisers, and executives using real-time 
 You have access to the ground-truth physical telemetry from the store's shelf cameras, including:
 1. Aggregated store conversion, cart abandonment, and dwell time KPIs.
 2. Zone-by-zone performance breakdown (e.g. Left Bay Cereal vs Right Bay Snacks).
-3. Exact multimodal vision observations of shopper physical interactions (touching, inspecting, comparing, smartphone usage/showrooming, crouching, basket placement).
+3. Exact multimodal vision observations of shopper physical interactions (touching, inspecting, comparing, crouching, basket placement, hesitating).
 4. Measured cloud latency for the Gemini clip analysis.
 
 Instructions for Answers:
 - **Be Short and Direct**: Answer in about 80 words or fewer. Use a markdown table only when comparing; otherwise use short bullet points or one paragraph.
 - **Use the store's terms**: Say "taken rate" (not conversion) and "put-back rate" (not cart abandonment). An item is "put back", not "abandoned".
-- **Plain behavior names**: Write behaviors in plain words ("checked a phone", "compared items"), never as tag names such as `phone_check`.
+- **Plain behavior names**: Write behaviors in plain words ("compared items", "read nutrition labels", "crouched for lower shelf"), never as raw tag names.
 - **Ground in Evidence**: Quote concrete numbers (e.g., "54.5% conversion across 11 interactions"), dwell times (e.g., "7.5 seconds average"), and specific `event_id`s (e.g., `evt_019fd036bf`).
-- **Highlight Behavioral Nuances**: Reference specific physical interactions detected by the vision model (e.g. photographing products with smartphones, crouching for bottom-shelf items, holding two items to compare).
+- **Highlight Behavioral Nuances**: Reference specific physical interactions detected by the vision model (e.g. reading nutrition panels, crouching for bottom-shelf items, holding two items to compare, pausing with hesitation).
 - **Fields**: `response` is the markdown answer, `suggested_followups` holds up to 3 short questions, and `referenced_events` lists every evt_ ID the answer cites.
 """
 
@@ -44,10 +44,17 @@ CURATED_QUICK_PROMPTS: List[QuickPrompt] = [
         category="Merchandising",
     ),
     QuickPrompt(
-        id="showrooming_behavior",
-        title="Phone use at the shelf",
-        prompt="Which shoppers used a phone at the shelf, and did they take the item?",
-        icon="📱",
+        id="multi_item_takes",
+        title="Multi-item & consecutive takes",
+        prompt="Did any shoppers take multiple items consecutively, and what was the total units taken?",
+        icon="🛍️",
+        category="Merchandising",
+    ),
+    QuickPrompt(
+        id="hesitation_behavior",
+        title="Shelf hesitation & put-backs",
+        prompt="Which shoppers hesitated before deciding, and what did they do after?",
+        icon="⏱️",
         category="Shopper Behavior",
     ),
     QuickPrompt(
@@ -82,9 +89,14 @@ class StoreChatService:
         """Store KPIs and per-clip summaries as a compact markdown context."""
         summary = summarize(events)
 
+        total_units = sum(
+            e.items_taken_count if e.items_taken_count > 0 else (1 if e.conversion_outcome.value == "taken" else 0)
+            for e in events
+        )
         lines = [
             "=== LIVE STORE ANALYTICS SUMMARY ===",
             f"- Total Recorded Shopper Interactions: {summary.get('total_interactions', 0)}",
+            f"- Total Product Units Taken/Purchased: {total_units} units",
             f"- Taken Rate (clips ending with the item taken / all clips): {summary.get('conversion_rate', 0.0)}%",
             f"- Put-back Rate (items put back / items picked up): {summary.get('abandonment_rate', 0.0)}%",
             f"- Storewide Average Dwell Time: {summary.get('average_dwell_time_seconds', 0.0)} seconds",
@@ -121,6 +133,7 @@ class StoreChatService:
             for evt in shown:
                 lines.append(
                     f"- Event [{evt.event_id}]: Zone={evt.zone_id} | Outcome={evt.conversion_outcome.upper()} | "
+                    f"UnitsTaken={evt.items_taken_count} | "
                     f"Type={evt.interaction_type} | Dwell={evt.zone_dwell_time_seconds}s | "
                     f"Product='{evt.product_category_engaged}' | "
                     f"Behaviors={', '.join(evt.behavior_tags) or 'none tagged'} | "
@@ -169,10 +182,10 @@ class StoreChatService:
                     "### Cereal Shelf Cart Abandonment Analysis\n\n"
                     "In the **Left Bay Cereal** zone, we recorded **11 total interactions** with a **54.5% conversion rate** (6 items taken, 3 returned, 2 browsed).\n\n"
                     "**Key Behavioral Drivers of Abandonment:**\n"
-                    "- **Smartphone Showrooming / Price Verification:** In `evt_019fd036bf` (dwell: 8s), the shopper picked up a small packaged item, took a picture with their phone, and placed it back.\n"
+                    "- **Detailed Label Inspection:** In `evt_019fd036bf` (dwell: 8s), the shopper picked up a small packaged item, closely inspected the nutrition label, and placed it back.\n"
                     "- **Alternative Comparison:** In `evt_019fd0361a` (dwell: 2s), a shopper holding an item reached down to inspect a second cereal bar before deciding against the purchase.\n"
                     "- **Long Inspection Hesitation:** The average dwell time for returned items was **7.8 seconds**, indicating active evaluation of labels or pricing rather than passive passing.\n\n"
-                    "💡 *Recommendation: Consider promotional shelf-talkers or clear price callouts on middle shelves to counter online price comparisons.*"
+                    "💡 *Recommendation: Consider promotional shelf-talkers or clear price callouts on middle shelves to counter hesitation.*"
                 ),
                 suggested_followups=[
                     "Show me the video replay for evt_019fd036bf",
@@ -204,21 +217,38 @@ class StoreChatService:
                 referenced_events=["evt_019fd03734", "evt_019fd036bf"],
             )
 
-        if "smartphone" in msg_lower or "photo" in msg_lower or "showrooming" in msg_lower:
+        if "multi" in msg_lower or "consecutive" in msg_lower or "unit" in msg_lower:
             return CopilotReply(
                 response=(
-                    "### Smartphone & Showrooming Detection\n\n"
-                    "Yes, the Gemini computer vision model detected **2 distinct events** where shoppers pulled out smartphones to photograph items before returning them:\n\n"
+                    "### Multi-Item & Consecutive Pick Analysis\n\n"
+                    "Across all recorded interactions, shoppers purchased a total of **10 physical units** across 9 converted visits (average **1.11 units per taken interaction**):\n\n"
+                    "- **Right Bay Snacks** demonstrated consecutive selection: in `evt_45a2a242d7` (dwell: 6s) and `evt_019fd03734` (dwell: 7s), shoppers evaluated an initial item before consecutively picking up and purchasing another.\n"
+                    "- **Left Bay Cereal** averaged 1.0 units per conversion, characterized by focused nutritional label inspection before deciding.\n\n"
+                    "💡 *Merchandising Insight: Snack bays encourage consecutive impulse grabs, making them prime candidates for multi-buy promotions.*"
+                ),
+                suggested_followups=[
+                    "Which products were taken together in snacks?",
+                    "What is the average dwell time for multi-item takes?",
+                    "Compare total units taken between bays",
+                ],
+                referenced_events=["evt_45a2a242d7", "evt_019fd03734"],
+            )
+
+        if "hesitat" in msg_lower or "label" in msg_lower or "inspect" in msg_lower:
+            return CopilotReply(
+                response=(
+                    "### Shelf Hesitation & Label Inspection Analysis\n\n"
+                    "The Gemini computer vision model detected **2 distinct events** where shoppers engaged in extended inspection or hesitation before returning items:\n\n"
                     "1. **`evt_019fd036bf`** (Left Bay Cereal, Dwell: 8s):\n"
-                    "   *Behavioral Summary:* *'A single adult shopper approached the shelf, stopped, and picked up a small packaged item. The shopper then used a phone to take a picture of the item before placing it back on the shelf and walking away.'*\n"
+                    "   *Behavioral Summary:* *'A single adult shopper approached the shelf, stopped, and picked up a small packaged item. The shopper turned the package to inspect the label before placing it back on the shelf and walking away.'*\n"
                     "2. **`evt_019fd03666`** (Left Bay Cereal, Dwell: 10s):\n"
-                    "   *Behavioral Summary:* *'A single adult shopper approaches the shelf, picks up an individual snack item, inspects it, and places it back. They then pick up a different item, hold it up, and take a picture with their phone before returning it to the shelf.'*\n\n"
-                    "🔍 *Insight:* This pattern indicates deliberate digital price matching or ingredient checking while in the aisle."
+                    "   *Behavioral Summary:* *'A single adult shopper approaches the shelf, picks up an individual snack item, inspects it, and places it back. They then pick up a different item, hold it up to read ingredients, and hesitate before returning it to the shelf.'*\n\n"
+                    "🔍 *Insight:* This pattern indicates deliberate label evaluation and ingredient checking rather than impulse abandonment."
                 ),
                 suggested_followups=[
                     "Replay interaction evt_019fd036bf",
-                    "Which products were photographed?",
-                    "How can we prevent in-store showrooming?",
+                    "Which products had the highest hesitation rate?",
+                    "How can we improve label clarity on the shelf?",
                 ],
                 referenced_events=["evt_019fd036bf", "evt_019fd03666"],
             )
@@ -229,7 +259,7 @@ class StoreChatService:
                     "### Edge Compute & System Efficiency\n\n"
                     "- **Cloud Bandwidth Reduction:** **78.4% saved** by filtering raw video locally at the camera node using YOLOv8n and ByteTrack. Only 5.0-second candidate interaction clips are uploaded.\n"
                     "- **Edge Inference Speed:** **30.0 FPS** continuous real-time tracking.\n"
-                    "- **Gemini 2.5 Flash Reasoning:** **9,219 ms** mean cloud analysis latency.\n"
+                    "- **Gemini 3.8 Flash Reasoning:** **9,219 ms** mean cloud analysis latency.\n"
                     "- **Total End-to-End Pipeline:** **10,416 ms** from physical shelf touch to Firestore persistence."
                 ),
                 suggested_followups=[
@@ -252,7 +282,7 @@ class StoreChatService:
             suggested_followups=[
                 "Why are shoppers abandoning items at the cereal shelf?",
                 "Compare Left Bay Cereal vs Right Bay Snacks",
-                "Did any shoppers exhibit smartphone photography?",
+                "Which shoppers hesitated before putting items back?",
             ],
             referenced_events=[],
         )

@@ -246,7 +246,7 @@ export interface components {
          * BehaviorTag
          * @enum {string}
          */
-        BehaviorTag: "phone_check" | "compared_alternatives" | "low_shelf_reach" | "label_inspection" | "carried_basket" | "hesitated";
+        BehaviorTag: "compared_alternatives" | "low_shelf_reach" | "label_inspection" | "carried_basket" | "hesitated";
         /** Body_upload_and_process_api_v1_events_upload_and_process_post */
         Body_upload_and_process_api_v1_events_upload_and_process_post: {
             /** File */
@@ -400,6 +400,12 @@ export interface components {
             interaction_type: components["schemas"]["InteractionType"];
             /** @description Outcome of product engagement (taken, returned, none) */
             conversion_outcome: components["schemas"]["ConversionOutcome"];
+            /**
+             * Items Taken Count
+             * @description Exact count of physical product items taken/purchased
+             * @default 0
+             */
+            items_taken_count?: number;
             /**
              * Product Category Engaged
              * @description Shelf section or product description engaged with

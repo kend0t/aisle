@@ -18,7 +18,7 @@ export function useEvents() {
 /** Changes whenever an event is added or re-tagged; findings are keyed on it. */
 export function eventsKey(events: InteractionEvent[]): string {
   return events
-    .map((e) => `${e.event_id}:${e.created_at}:${e.behavior_tags.join(",")}`)
+    .map((e) => `${e.event_id}:${e.created_at}:${e.conversion_outcome}:${e.items_taken_count ?? 0}:${e.behavior_tags.join(",")}`)
     .sort()
     .join("|");
 }

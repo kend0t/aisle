@@ -143,7 +143,12 @@ def list_events(
     events = repo.list_events(zone_id=zone_id, interaction_type=interaction_type, outcome=outcome, limit=limit)
 
     # The dashboard polls this endpoint; an ETag lets the browser revalidate with a 304.
-    fingerprint = "|".join(sorted(f"{e.event_id}:{e.created_at}:{','.join(e.behavior_tags)}" for e in events))
+    fingerprint = "|".join(
+        sorted(
+            f"{e.event_id}:{e.created_at}:{e.conversion_outcome}:{e.items_taken_count}:{','.join(e.behavior_tags)}:{e.behavioral_summary[:30]}"
+            for e in events
+        )
+    )
     etag = f'"{hashlib.sha1(fingerprint.encode()).hexdigest()}"'
     headers = {"ETag": etag, "Cache-Control": "no-cache"}
     if request.headers.get("if-none-match") == etag:

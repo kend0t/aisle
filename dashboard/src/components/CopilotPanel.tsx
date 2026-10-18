@@ -25,7 +25,7 @@ interface Props {
 }
 
 /** Starter chips show the short title and send the full question. */
-const STARTERS = 3;
+const STARTERS = 4;
 
 function toHistory(messages: Message[]): ChatTurn[] {
   return messages

@@ -15,13 +15,13 @@ from backend_service.services.storage_service import StorageService
 
 logger = logging.getLogger(__name__)
 
-BEHAVIOR_TAG_GUIDE = """- behavior_tags (include only behaviors clearly visible in the clip; use an empty list if none apply):
-  - 'phone_check': A phone is clearly visible in hand while at the shelf (photographing a product, checking a price).
+BEHAVIOR_TAG_GUIDE = """- behavior_tags (include only physical shopper behaviors clearly visible in the clip; use an empty list if none apply):
   - 'compared_alternatives': Held or looked back and forth between two or more products.
   - 'low_shelf_reach': Visibly crouched or bent at the waist to reach the bottom shelf. Reaching forward with an arm does not count.
-  - 'label_inspection': Turned or held a product close to read its packaging.
+  - 'label_inspection': Turned or held a product close to read packaging, ingredients, or nutrition labels.
   - 'carried_basket': Carried a basket or pushed a cart.
   - 'hesitated': Paused with a product in hand before deciding.
+Note: Focus strictly on physical merchandise handling. Do not interpret small packages, snack bars, or items held in hands as smartphones or cameras.
 """
 
 SYSTEM_PROMPT = (
@@ -38,6 +38,9 @@ Definitions:
   - 'taken': Leaves with an item (cart, basket, or held to purchase).
   - 'returned': Picked up an item, put it back on the shelf, and leaves without it.
   - 'none': Never picked up an item.
+- items_taken_count:
+  - 0 if conversion_outcome is 'returned' or 'none'.
+  - If conversion_outcome is 'taken', count the exact number of physical product units the shopper takes or puts into cart/basket (e.g. 1, 2, 3...). Pay close attention if a customer takes multiple items consecutively.
 """
     + BEHAVIOR_TAG_GUIDE
 )
@@ -109,6 +112,7 @@ def _mock_analysis(dwell_time: int) -> ClipAnalysis:
         zone_dwell_time_seconds=dwell_time,
         interaction_type=InteractionType.EXAMINED,
         conversion_outcome=ConversionOutcome.RETURNED,
+        items_taken_count=0,
         product_category_engaged="eye_level_organic_cereals",
         shopper_group_size=1,
         estimated_demographic=EstimatedDemographic.ADULT,

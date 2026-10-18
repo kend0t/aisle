@@ -21,6 +21,7 @@ function geminiRecord(event: InteractionEvent) {
     shopper_group_size: event.shopper_group_size,
     estimated_demographic: event.estimated_demographic,
     behavior_tags: event.behavior_tags,
+    items_taken_count: event.items_taken_count ?? (event.conversion_outcome === "taken" ? 1 : 0),
     behavioral_summary: event.behavioral_summary,
   };
 }
@@ -83,6 +84,12 @@ export default function ReplayDialog({ event, onClose }: Props) {
                 <dt>Product</dt>
                 <dd>{humanize(event.product_category_engaged)}</dd>
               </div>
+              {event.conversion_outcome === "taken" && (
+                <div>
+                  <dt>Units taken</dt>
+                  <dd>{event.items_taken_count ?? 1}</dd>
+                </div>
+              )}
               <div>
                 <dt>Time at shelf</dt>
                 <dd>{event.zone_dwell_time_seconds} s</dd>
