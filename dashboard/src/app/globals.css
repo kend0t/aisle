@@ -89,7 +89,7 @@ html {
 body {
   background: var(--shelf);
   color: var(--ink);
-  font-family: var(--font-archivo), system-ui, sans-serif;
+  font-family: var(--font-text), system-ui, sans-serif;
   font-size: var(--text-m);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -100,7 +100,7 @@ h1,
 h2,
 h3 {
   line-height: 1.2;
-  font-weight: 600;
+  font-weight: 700;
   text-wrap: balance;
 }
 
@@ -135,9 +135,8 @@ video {
 
 /* Condensed figures, set like the numbers on a shelf price label. */
 .figure {
-  font-variation-settings: "wdth" 72;
-  font-weight: 650;
-  letter-spacing: -0.01em;
+  font-family: var(--font-figure), var(--font-text), sans-serif;
+  font-weight: 750;
   line-height: 1;
 }
 

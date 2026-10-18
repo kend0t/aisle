@@ -27,8 +27,8 @@ The subject is a store shelf seen from the ceiling camera. Colors and type come 
 Both themes follow `prefers-color-scheme`. Add new colors as tokens in both themes, never as literals in components.
 
 ### Type
-- One family: **Archivo** (variable, loaded with `next/font/google`).
-- Figures use the `.figure` class: condensed width (`wdth` 72) and tabular numerals, like the price on a shelf label.
+- One superfamily, loaded with `next/font/google`: **Sofia Sans** for text (`--font-text`) and **Sofia Sans Extra Condensed** for figures (`--font-figure`). Both are variable in weight.
+- Figures use the `.figure` class: the extra-condensed cut, heavy weight and tabular numerals, like the price on a shelf tag. Headings use weight 700; Sofia Sans reads lighter than its number suggests.
 - Sentence case everywhere. No all-caps labels, no monospace labels, no emojis in the UI.
 
 ### Words

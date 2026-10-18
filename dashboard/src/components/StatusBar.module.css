@@ -19,9 +19,8 @@
 }
 
 .wordmark {
-  font-weight: 700;
+  font-weight: 850;
   font-size: var(--text-l);
-  font-variation-settings: "wdth" 112;
   letter-spacing: -0.01em;
 }
 

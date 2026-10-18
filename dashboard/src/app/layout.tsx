@@ -1,13 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Archivo } from "next/font/google";
+import { Sofia_Sans, Sofia_Sans_Extra_Condensed } from "next/font/google";
 import Providers from "./providers";
 import "./globals.css";
 
-const archivo = Archivo({
-  subsets: ["latin"],
-  axes: ["wdth"],
-  variable: "--font-archivo",
-});
+// Text in Sofia Sans; figures in its extra-condensed cut, like the price on a shelf tag.
+const sofiaSans = Sofia_Sans({ subsets: ["latin"], variable: "--font-text" });
+const sofiaFigures = Sofia_Sans_Extra_Condensed({ subsets: ["latin"], variable: "--font-figure" });
 
 export const metadata: Metadata = {
   title: "AIsle",
@@ -24,7 +22,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={archivo.variable}>
+    <html lang="en" className={`${sofiaSans.variable} ${sofiaFigures.variable}`}>
       <body>
         <Providers>{children}</Providers>
       </body>
