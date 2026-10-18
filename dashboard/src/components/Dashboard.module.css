@@ -13,6 +13,8 @@
 
 .main {
   min-width: 0;
+  /* Lets the funnel's floor grid span this column with cqw units. */
+  container-type: inline-size;
 }
 
 .content {

@@ -1,7 +1,39 @@
 .funnel {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  --grid-top: 32px;
+  --grid-bottom: 40px;
+}
+
+/*
+  The store floor under the camera: a faint tile grid across the main column,
+  fading out below the funnel. The only background texture on the page.
+*/
+.funnel::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: calc(-1 * var(--grid-top));
+  bottom: calc(-1 * var(--grid-bottom));
+  left: calc(50% - 50cqw);
+  width: 100cqw;
+  --grid-line: color-mix(in srgb, var(--ink) 6%, transparent);
+  background-image:
+    repeating-linear-gradient(to right, var(--grid-line) 0 1px, transparent 1px 48px),
+    repeating-linear-gradient(to bottom, var(--grid-line) 0 1px, transparent 1px 48px);
+  background-position: 13px 7px;
+  mask-image: linear-gradient(to bottom, #000 55%, transparent);
+  pointer-events: none;
+}
+
+@media (max-width: 960px) {
+  .funnel {
+    --grid-top: 24px;
+    --grid-bottom: 32px;
+  }
 }
 
 .header {

@@ -61,6 +61,7 @@ Both themes follow `prefers-color-scheme`. Add new colors as tokens in both them
 
 ### Layout
 - Order: title with the orientation line, shelf funnel, then the overhead shelf map beside findings and behaviors, then the clip list. Every number links to the clips behind it.
+- The only background texture is a faint floor-tile grid behind the title and funnel, fading out above the map. Keep it barely visible; nothing else gets a texture.
 - The orientation line is always shown: one sentence on what the camera and Gemini do, then the count and date range.
 - Copilot is a side panel on wide screens that hides to a floating button, and a bottom sheet under 960px. Its empty state is one line and three short starter chips next to the input.
 - Must work at 390px width without horizontal scrolling.
