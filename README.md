@@ -1,7 +1,11 @@
+<p align="center">
+  <img src="docs/assets/opengraph-image.png" alt="AIsle — Shelf-level Shopper Analytics" width="100%" />
+</p>
+
 # AIsle: Physical Retail Behavioral Intelligence Platform
 
 > **Google AI Builder Cup** — Retail & Commerce Track  
-> Transforming physical store shelves from a data "black box" into an e-commerce-grade analytics funnel using Google Gemini 2.5 Flash, Cloud Run, Cloud Storage, and Cloud Firestore.
+> Transforming physical store shelves from a data "black box" into an e-commerce-grade analytics funnel using Google Gemini 3.8 Flash, Cloud Run, Cloud Storage, and Cloud Firestore.
 
 ---
 
@@ -25,7 +29,7 @@ In physical retail—where over **80% of global retail commerce** still occurs�
 
 ## 2. The Solution: AIsle
 
-**AIsle** bridges the physical-digital divide. By pairing lightweight edge vision tracking with **Google Gemini 2.5 Flash** on Vertex AI, AIsle translates raw in-store camera streams into structured, actionable behavioral telemetry without invasive 24/7 video streaming costs.
+**AIsle** bridges the physical-digital divide. By pairing lightweight edge vision tracking with **Google Gemini 3.8 Flash** on Vertex AI, AIsle translates raw in-store camera streams into structured, actionable behavioral telemetry without invasive 24/7 video streaming costs.
 
 ```mermaid
 graph TD
@@ -38,7 +42,7 @@ graph TD
 
     subgraph "Google Cloud Platform"
         EdgeNode -->|POST /events/process-clip| Backend[Cloud Run: aisle-backend<br>FastAPI Python 3.11]
-        Backend -->|Multimodal Posture & Interaction Reasoning| Gemini[Vertex AI<br>Gemini 2.5 Flash]
+        Backend -->|Multimodal Posture & Interaction Reasoning| Gemini[Vertex AI<br>Gemini 3.8 Flash]
         Gemini -->|Structured Behavioral JSON| Backend
         Backend -->|Commit Telemetry & Tags| Firestore[(Cloud Firestore<br>Native Database)]
     end
@@ -84,7 +88,7 @@ Evaluated on official top-down retail interaction benchmark data:
 | :--- | :--- | :--- | :--- |
 | **Edge Tracking Speed** | **25 – 32 FPS** | $\ge$ 20 FPS | 🟢 Real-time |
 | **Cloud Bandwidth Reduction** | **78.4%** | $\ge$ 70% | 🟢 Proven |
-| **Gemini 2.5 Vision Latency** | **9.2s** (P95: 13.8s) | Operational alert | 🟢 Operational |
+| **Gemini 3.8 Vision Latency** | **9.2s** (P95: 13.8s) | Operational alert | 🟢 Operational |
 | **Total Pipeline Latency** | **10.4s** (Touch to Firestore) | Near real-time | 🟢 Verified |
 | **Baseline Shelf Conversion** | **52.9%** (9 of 17 taken) | Ground truth | 🟢 Verified |
 | **Shelf Abandonment Rate** | **29.4%** (5 of 17 put back) | Ground truth | 🟢 Verified |
@@ -96,7 +100,7 @@ Evaluated on official top-down retail interaction benchmark data:
 * **Edge Compute:** Python 3.11, Ultralytics YOLOv8n, ByteTrack, OpenCV (`avc1` / H.264 native encoding).
 * **Cloud Infrastructure:** Google Cloud Platform (`asia-southeast1`).
   * **Compute:** Google Cloud Run (Serverless microservices with autoscaling).
-  * **AI / Foundation Models:** Vertex AI Gemini 2.5 Flash (`gemini-2.5-flash`).
+  * **AI / Foundation Models:** Vertex AI Gemini 3.8 Flash (`gemini-3.8-flash`).
   * **Storage:** Google Cloud Storage (`gs://aisle-clips-aisle-retail`).
   * **Database:** Google Cloud Firestore (Native NoSQL database).
   * **Build & Deploy:** Google Cloud Build, Google Artifact Registry.
