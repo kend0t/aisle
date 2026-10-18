@@ -61,9 +61,30 @@ export function countOutcomes(events: InteractionEvent[]): OutcomeCounts {
   };
 }
 
-export function meanGeminiLatency(events: InteractionEvent[]): number | null {
-  const values = events
-    .map((e) => e.gemini_latency_ms)
-    .filter((v): v is number => typeof v === "number" && v > 0);
-  return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
+/** "16 May - 30 Jul 2024"; the year appears once when both ends share it. */
+export function formatDateRange(events: InteractionEvent[]): string | null {
+  const times = events.map((e) => new Date(e.timestamp).getTime()).filter((t) => !Number.isNaN(t));
+  if (times.length === 0) return null;
+  const first = new Date(Math.min(...times));
+  const last = new Date(Math.max(...times));
+  const dayMonth = { day: "numeric", month: "short" } as const;
+  const end = last.toLocaleDateString(undefined, { ...dayMonth, year: "numeric" });
+  if (first.toDateString() === last.toDateString()) return end;
+  const start = first.toLocaleDateString(
+    undefined,
+    first.getFullYear() === last.getFullYear() ? dayMonth : { ...dayMonth, year: "numeric" },
+  );
+  return `${start} - ${end}`;
+}
+
+export interface TagCounts extends OutcomeCounts {
+  tag: BehaviorTag;
+}
+
+/** Outcome counts per behavior, most frequent first. A clip can count under several behaviors. */
+export function countTags(events: InteractionEvent[]): TagCounts[] {
+  const tags = [...new Set(events.flatMap((e) => e.behavior_tags))];
+  return tags
+    .map((tag) => ({ tag, ...countOutcomes(events.filter((e) => e.behavior_tags.includes(tag))) }))
+    .sort((a, b) => b.total - a.total);
 }

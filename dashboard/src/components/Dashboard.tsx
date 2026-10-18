@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { ApiError, type InteractionEvent, type Outcome } from "@/lib/api";
+import { ApiError, type BehaviorTag, type InteractionEvent, type Outcome } from "@/lib/api";
 import { useEvents, useInsights } from "@/lib/queries";
 import StatusBar from "./StatusBar";
 import ShelfFunnel from "./ShelfFunnel";
 import ShelfMap from "./ShelfMap";
 import Findings from "./Findings";
+import Behaviors from "./Behaviors";
 import ClipLog from "./ClipLog";
 import ReplayDialog from "./ReplayDialog";
 import CopilotLauncher from "./CopilotLauncher";
@@ -22,10 +23,13 @@ export default function Dashboard() {
   const events = eventsQuery.data ?? NO_EVENTS;
   const [zoneId, setZoneId] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<Outcome | "all">("all");
+  const [tag, setTag] = useState<BehaviorTag | null>(null);
   const [clipId, setClipId] = useState<string | null>(null);
   const copilotExpanded = useCopilotExpanded();
   const [sheetOpen, setSheetOpen] = useState(false);
 
+  // The zone scopes every view; outcome and behavior filter only the clip list.
+  const scoped = zoneId ? events.filter((e) => e.zone_id === zoneId) : events;
   const openClip = events.find((e) => e.event_id === clipId) ?? null;
   const attentionZones = (insightsQuery.data?.findings ?? [])
     .filter((f) => f.severity === "act" && f.zone_id)
@@ -42,7 +46,6 @@ export default function Dashboard() {
     <div className={`${styles.shell} ${copilotExpanded ? "" : styles.collapsed}`}>
       <div className={styles.main}>
         <StatusBar
-          events={events}
           failed={eventsQuery.isError}
           updatedAt={eventsQuery.dataUpdatedAt}
         />
@@ -61,7 +64,7 @@ export default function Dashboard() {
           <main className={styles.content}>
             <ShelfFunnel
               loading={eventsQuery.isPending}
-              events={events}
+              events={scoped}
               zoneId={zoneId}
               outcome={outcome}
               onSelectOutcome={setOutcome}
@@ -76,15 +79,18 @@ export default function Dashboard() {
                 attentionZones={attentionZones}
                 onSelectZone={toggleZone}
               />
-              <Findings
-                insights={insightsQuery.data ?? null}
-                loading={insightsQuery.isFetching}
-                failed={insightsQuery.isError}
-                onRetry={() => void insightsQuery.refetch()}
-                clipCount={events.length}
-                onOpenClip={setClipId}
-                onSelectZone={setZoneId}
-              />
+              <div className={styles.side}>
+                <Findings
+                  insights={insightsQuery.data ?? null}
+                  loading={insightsQuery.isFetching}
+                  failed={insightsQuery.isError}
+                  onRetry={() => void insightsQuery.refetch()}
+                  clipCount={events.length}
+                  onOpenClip={setClipId}
+                  onSelectZone={setZoneId}
+                />
+                <Behaviors events={scoped} tag={tag} onSelectTag={setTag} />
+              </div>
             </div>
 
             {ready && (
@@ -92,7 +98,9 @@ export default function Dashboard() {
                 events={events}
                 zoneId={zoneId}
                 outcome={outcome}
+                tag={tag}
                 onClearZone={() => setZoneId(null)}
+                onClearTag={() => setTag(null)}
                 onOutcomeChange={setOutcome}
                 onOpenClip={setClipId}
               />

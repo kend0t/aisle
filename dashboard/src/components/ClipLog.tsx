@@ -1,4 +1,4 @@
-import type { InteractionEvent, Outcome } from "@/lib/api";
+import type { BehaviorTag, InteractionEvent, Outcome } from "@/lib/api";
 import { countOutcomes, humanize, OUTCOME_LABEL, TAG_LABEL, zoneName } from "@/lib/format";
 import ClipThumb from "./ClipThumb";
 import OutcomeBadge from "./OutcomeBadge";
@@ -10,7 +10,9 @@ interface Props {
   events: InteractionEvent[];
   zoneId: string | null;
   outcome: Outcome | "all";
+  tag: BehaviorTag | null;
   onClearZone: () => void;
+  onClearTag: () => void;
   onOutcomeChange: (outcome: Outcome | "all") => void;
   onOpenClip: (eventId: string) => void;
 }
@@ -19,13 +21,18 @@ export default function ClipLog({
   events,
   zoneId,
   outcome,
+  tag,
   onClearZone,
+  onClearTag,
   onOutcomeChange,
   onOpenClip,
 }: Props) {
-  const inZone = events.filter((e) => !zoneId || e.zone_id === zoneId);
-  const shown = inZone.filter((e) => outcome === "all" || e.conversion_outcome === outcome);
-  const counts = countOutcomes(inZone);
+  // Zone and behavior narrow the set; the outcome filter then splits it, so its counts sum to "All".
+  const scoped = events.filter(
+    (e) => (!zoneId || e.zone_id === zoneId) && (!tag || e.behavior_tags.includes(tag)),
+  );
+  const shown = scoped.filter((e) => outcome === "all" || e.conversion_outcome === outcome);
+  const counts = countOutcomes(scoped);
   const filterCount = { all: counts.total, taken: counts.taken, returned: counts.returned, none: counts.none };
 
   return (
@@ -37,10 +44,17 @@ export default function ClipLog({
 
         <div className={styles.filters}>
           {zoneId && (
-            <button type="button" className={styles.zoneChip} onClick={onClearZone}>
+            <button type="button" className={styles.chip} onClick={onClearZone}>
               {zoneName(zoneId)}
               <span aria-hidden="true">×</span>
               <span className="visually-hidden">Show all zones</span>
+            </button>
+          )}
+          {tag && (
+            <button type="button" className={styles.chip} onClick={onClearTag}>
+              {TAG_LABEL[tag] ?? humanize(tag)}
+              <span aria-hidden="true">×</span>
+              <span className="visually-hidden">Show all behaviors</span>
             </button>
           )}
           <div className={styles.segmented} role="radiogroup" aria-label="Outcome">
@@ -67,6 +81,7 @@ export default function ClipLog({
             type="button"
             onClick={() => {
               onClearZone();
+              onClearTag();
               onOutcomeChange("all");
             }}
           >

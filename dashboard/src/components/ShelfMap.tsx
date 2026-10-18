@@ -1,5 +1,5 @@
 import type { InteractionEvent } from "@/lib/api";
-import { countOutcomes, percent } from "@/lib/format";
+import { countOutcomes } from "@/lib/format";
 import { FRAME_HEIGHT, FRAME_WIDTH, ZONES, zoneCentroid } from "@/lib/zones";
 import styles from "./ShelfMap.module.css";
 
@@ -12,10 +12,10 @@ interface Props {
 }
 
 export default function ShelfMap({ ready, events, selectedZone, attentionZones, onSelectZone }: Props) {
-  const zones = ZONES.map((zone) => {
-    const counts = countOutcomes(events.filter((e) => e.zone_id === zone.id));
-    return { zone, counts, rate: percent(counts.returned, counts.pickedUp) };
-  });
+  const zones = ZONES.map((zone) => ({
+    zone,
+    counts: countOutcomes(events.filter((e) => e.zone_id === zone.id)),
+  }));
 
   return (
     <figure className={styles.map} aria-label="Shelf map. Select a zone to filter.">
@@ -32,12 +32,11 @@ export default function ShelfMap({ ready, events, selectedZone, attentionZones, 
           viewBox={`0 0 ${FRAME_WIDTH} ${FRAME_HEIGHT}`}
           aria-hidden="true"
         >
-          {zones.map(({ zone, rate }) => (
+          {zones.map(({ zone }) => (
             <polygon
               key={zone.id}
               points={zone.polygon.map((p) => p.join(",")).join(" ")}
               className={selectedZone === zone.id ? styles.zoneSelected : styles.zone}
-              style={{ fillOpacity: 0.12 + (rate / 100) * 0.5 }}
               onClick={() => onSelectZone(zone.id)}
             />
           ))}
@@ -56,9 +55,19 @@ export default function ShelfMap({ ready, events, selectedZone, attentionZones, 
               onClick={() => onSelectZone(zone.id)}
             >
               <span className={styles.labelName}>{zone.name}</span>
-              <span className={styles.labelCount}>
-                <span className={`figure ${styles.labelFigure}`}>{counts.returned}</span> of{" "}
-                {counts.pickedUp} put back
+              <span className={styles.labelTotal}>
+                <span className={`figure ${styles.labelFigure}`}>{counts.total}</span> stopped
+              </span>
+              <span className={styles.labelSplit}>
+                <span className={styles.labelTaken}>
+                  <span className="figure">{counts.taken}</span> taken
+                </span>
+                <span className={styles.labelReturned}>
+                  <span className="figure">{counts.returned}</span> put back
+                </span>
+                <span>
+                  <span className="figure">{counts.none}</span> no pick-up
+                </span>
               </span>
             </button>
           );

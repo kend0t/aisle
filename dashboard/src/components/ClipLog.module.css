@@ -31,7 +31,7 @@
   gap: 10px;
 }
 
-.zoneChip {
+.chip {
   display: flex;
   align-items: center;
   gap: 8px;

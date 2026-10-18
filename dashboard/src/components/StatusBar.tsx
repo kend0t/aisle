@@ -1,46 +1,24 @@
-import type { InteractionEvent } from "@/lib/api";
-import { formatSeconds, meanGeminiLatency } from "@/lib/format";
 import styles from "./StatusBar.module.css";
+import Wordmark from "./Wordmark";
 
 interface Props {
-  events: InteractionEvent[];
   failed: boolean;
   /** Time of the last successful load in ms since the epoch; 0 before the first one. */
   updatedAt: number;
 }
 
-export default function StatusBar({ events, failed, updatedAt }: Props) {
-  const latency = meanGeminiLatency(events);
+export default function StatusBar({ failed, updatedAt }: Props) {
   const updated = updatedAt
     ? new Date(updatedAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
     : null;
 
   return (
     <header className={styles.bar}>
-      <div className={styles.brand}>
-        <span className={styles.wordmark}>AIsle</span>
-        <span className={styles.store}>Test shelf, MERL dataset</span>
-      </div>
+      <Wordmark />
 
-      <dl className={styles.facts}>
-        {latency !== null && (
-          <div title="Mean time Gemini takes to read one clip, measured per clip">
-            <dt>Gemini</dt>
-            <dd>{formatSeconds(latency)} per clip</dd>
-          </div>
-        )}
-        <div aria-live="polite">
-          <dt className="visually-hidden">Status</dt>
-          <dd className={failed ? styles.error : undefined}>
-            {failed
-              ? "Backend offline, retrying"
-              : updated
-                ? `Updated ${updated}`
-                : "Loading"}
-          </dd>
-        </div>
-      </dl>
-
+      <p className={failed ? styles.error : styles.status} aria-live="polite">
+        {failed ? "Backend offline, retrying" : updated ? `Updated ${updated}` : "Loading"}
+      </p>
     </header>
   );
 }

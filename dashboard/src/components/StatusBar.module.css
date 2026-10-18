@@ -1,7 +1,8 @@
 .bar {
   display: flex;
   align-items: center;
-  gap: 32px;
+  justify-content: space-between;
+  gap: 24px;
   padding: 14px var(--gutter);
   border-bottom: 1px solid var(--line);
   position: sticky;
@@ -10,62 +11,18 @@
   background: var(--shelf);
 }
 
-.brand {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  margin-right: auto;
-  min-width: 0;
-}
-
-.wordmark {
-  font-weight: 850;
-  font-size: var(--text-l);
-  letter-spacing: -0.01em;
-}
-
-.store {
-  color: var(--ink-3);
+.status {
   font-size: var(--text-s);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.facts {
-  display: flex;
-  gap: 28px;
-  font-size: var(--text-xs);
-}
-
-.facts div {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.facts dt {
-  color: var(--ink-3);
-}
-
-.facts dd {
-  font-size: var(--text-s);
+  color: var(--ink-2);
 }
 
 .error {
+  font-size: var(--text-s);
   color: var(--putback);
 }
 
 @media (max-width: 960px) {
   .bar {
-    flex-wrap: wrap;
-    gap: 12px 20px;
     padding: 12px 16px;
-  }
-
-  .facts {
-    order: 3;
-    width: 100%;
-    gap: 20px;
   }
 }
