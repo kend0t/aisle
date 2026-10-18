@@ -1,0 +1,145 @@
+{
+  "labeled_by": "claude-frames",
+  "method": "Independent review of frame sheets (whole clip at 1.1 fps, last 5 s at 2.4 fps), without Gemini's answers. Not a human label set.",
+  "clips": {
+    "evt_019fd03734": {
+      "outcome": "taken",
+      "behavior_tags": [
+        "compared_alternatives",
+        "label_inspection"
+      ],
+      "same_shopper_as": "",
+      "note": "Reaches top-shelf chips, then a lower item; walks off holding it."
+    },
+    "evt_45a2a242d7": {
+      "outcome": "taken",
+      "behavior_tags": [
+        "compared_alternatives",
+        "label_inspection"
+      ],
+      "same_shopper_as": "evt_019fd03734",
+      "note": "Same frames as evt_019fd03734."
+    },
+    "evt_145560b7c6": {
+      "outcome": "taken",
+      "behavior_tags": [
+        "phone_check",
+        "compared_alternatives"
+      ],
+      "same_shopper_as": "",
+      "note": "Photographs with phone, then ends holding a yellow snack."
+    },
+    "evt_1f559628d0": {
+      "outcome": "unclear",
+      "behavior_tags": [
+        "phone_check"
+      ],
+      "same_shopper_as": "evt_145560b7c6",
+      "note": "Ends mid-reach at the snack shelf."
+    },
+    "evt_4ffb35f691": {
+      "outcome": "unclear",
+      "behavior_tags": [
+        "carried_basket"
+      ],
+      "same_shopper_as": "",
+      "note": "Holds an item beside the basket for the whole end of the clip."
+    },
+    "evt_6c0249c393": {
+      "outcome": "unclear",
+      "behavior_tags": [
+        "phone_check"
+      ],
+      "same_shopper_as": "evt_1f559628d0",
+      "note": "Ends reaching to the cereal shelf."
+    },
+    "evt_795872e871": {
+      "outcome": "taken",
+      "behavior_tags": [
+        "compared_alternatives",
+        "label_inspection"
+      ],
+      "same_shopper_as": "evt_145560b7c6",
+      "note": "Swaps a yellow snack for a white one; ends holding it."
+    },
+    "evt_83c5807a43": {
+      "outcome": "unclear",
+      "behavior_tags": [],
+      "same_shopper_as": "evt_cfaa8c9cbf",
+      "note": "Shopper at the low cereal shelf leaves frame; item not visible."
+    },
+    "evt_9f04991116": {
+      "outcome": "unclear",
+      "behavior_tags": [
+        "carried_basket"
+      ],
+      "same_shopper_as": "",
+      "note": "Ends reaching to the low shelf with a basket."
+    },
+    "evt_a705d453d5": {
+      "outcome": "taken",
+      "behavior_tags": [
+        "carried_basket"
+      ],
+      "same_shopper_as": "evt_9f04991116",
+      "note": "Takes from the low snack shelf into the basket."
+    },
+    "evt_cd00d81eff": {
+      "outcome": "taken",
+      "behavior_tags": [
+        "carried_basket"
+      ],
+      "same_shopper_as": "evt_9f04991116",
+      "note": "Leaves with items in the basket."
+    },
+    "evt_cfaa8c9cbf": {
+      "outcome": "unclear",
+      "behavior_tags": [
+        "phone_check"
+      ],
+      "same_shopper_as": "",
+      "note": "Handles an item at the low cereal shelf; walks off, item not visible."
+    },
+    "evt_d8c511dc41": {
+      "outcome": "returned",
+      "behavior_tags": [
+        "label_inspection"
+      ],
+      "same_shopper_as": "",
+      "note": "Looks at an item, reaches back to the shelf, leaves empty-handed. Low confidence."
+    },
+    "evt_dcbc52b817": {
+      "outcome": "unclear",
+      "behavior_tags": [
+        "carried_basket"
+      ],
+      "same_shopper_as": "evt_4ffb35f691",
+      "note": "Ends reaching to the cereal shelf."
+    },
+    "evt_e0aff00d3a": {
+      "outcome": "taken",
+      "behavior_tags": [
+        "label_inspection"
+      ],
+      "same_shopper_as": "",
+      "note": "Takes snacks from the shelf and walks off holding them."
+    },
+    "evt_ee2ca6ec17": {
+      "outcome": "unclear",
+      "behavior_tags": [
+        "carried_basket"
+      ],
+      "same_shopper_as": "evt_4ffb35f691",
+      "note": "Ends reaching to the cereal shelf."
+    },
+    "evt_f3f6b5aa69": {
+      "outcome": "returned",
+      "behavior_tags": [
+        "phone_check",
+        "label_inspection"
+      ],
+      "same_shopper_as": "",
+      "note": "Phone in hand; examines a red snack, puts it back on the shelf."
+    }
+  }
+}

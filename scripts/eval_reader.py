@@ -23,7 +23,7 @@ from typing import Any, Callable, Dict, List, Optional, Set
 from backend_service.config import get_settings
 from backend_service.errors import GeminiError
 from backend_service.models.interaction_event import ClipAnalysis
-from backend_service.services.clip_verification import combine
+from backend_service.services.clip_verification import combine, consistency_issues
 from backend_service.services.gemini_analyzer import SYSTEM_PROMPT, GeminiAnalyzerService
 from backend_service.services.gemini_client import GeminiClient
 from backend_service.services.storage_service import StorageService
@@ -58,6 +58,13 @@ Definitions:
 
 Return ONLY the valid JSON object without markdown code blocks or additional commentary.
 """
+
+
+# Who produced the labels decides what the accuracy row may be called.
+LABEL_SOURCES = {
+    "human": "human labels",
+    "claude-frames": "an independent frame-by-frame review by Claude (not human labels)",
+}
 
 
 class Result(dict):
@@ -97,7 +104,11 @@ def single_reader(gemini: GeminiClient) -> Callable[[Path, str], Result]:
             temperature=0.2,
         )
         return Result(
-            outcome=read.conversion_outcome.value, tags=[t.value for t in read.behavior_tags], flagged=False, calls=1
+            outcome=read.conversion_outcome.value,
+            tags=[t.value for t in read.behavior_tags],
+            flagged=False,
+            contradiction=bool(consistency_issues(read)),
+            calls=1,
         )
 
     return run
@@ -111,6 +122,7 @@ def verified_reader(analyzer: GeminiAnalyzerService) -> Callable[[Path, str], Re
             outcome=consensus.analysis.conversion_outcome.value,
             tags=[t.value for t in consensus.analysis.behavior_tags],
             flagged=consensus.needs_review,
+            contradiction=bool(consistency_issues(consensus.analysis)),
             calls=len(reads),
         )
 
@@ -125,15 +137,20 @@ def score(runs: Dict[str, List[Result]], labels: Dict[str, dict]) -> Dict[str, A
     """Scores one reader over every clip and repeat."""
     clear = [cid for cid, label in labels.items() if label["outcome"] != "unclear"]
     correct, total, tags, latencies, calls = 0, 0, Counter(), [], 0
-    stable = 0
+    stable = contradictions = reads = 0
     flagged_wrong = flagged_right = unflagged_wrong = 0
+    unclear_reads = unclear_flagged = 0
     for cid, results in runs.items():
         outcomes = [r["outcome"] for r in results]
         stable += len(set(outcomes)) == 1
         for r in results:
             latencies.append(r["latency_ms"])
             calls += r["calls"]
+            reads += 1
+            contradictions += bool(r.get("contradiction"))
             if cid not in clear:
+                unclear_reads += 1
+                unclear_flagged += bool(r["flagged"])
                 continue
             right = r["outcome"] == labels[cid]["outcome"]
             correct += right
@@ -155,6 +172,8 @@ def score(runs: Dict[str, List[Result]], labels: Dict[str, dict]) -> Dict[str, A
         "stability": round(stable / len(runs), 3) if runs else None,
         "flag_precision": round(flagged_wrong / flagged, 3) if flagged else None,
         "wrong_reads_flagged": f"{flagged_wrong} of {flagged_wrong + unflagged_wrong}",
+        "unclear_reads_flagged": f"{unclear_flagged} of {unclear_reads}",
+        "self_contradictions": f"{contradictions} of {reads}",
         "mean_latency_ms": int(statistics.mean(latencies)) if latencies else None,
         "calls_per_clip": round(calls / len(latencies), 2) if latencies else None,
     }
@@ -172,8 +191,9 @@ def main() -> int:
         print(f"No labels at {args.labels}. Label the clips with eval/label.html first.", file=sys.stderr)
         return 1
     labels_file = json.loads(Path(args.labels).read_text())
-    if labels_file.get("labeled_by") != "human":
-        print("Labels are not human-confirmed; refusing to report accuracy.", file=sys.stderr)
+    label_source = labels_file.get("labeled_by")
+    if label_source not in LABEL_SOURCES:
+        print(f"Unknown label source {label_source!r}; expected one of {sorted(LABEL_SOURCES)}.", file=sys.stderr)
         return 1
     labels: Dict[str, dict] = labels_file["clips"]
     seed = {e["event_id"]: e for e in json.loads(Path("backend_service/data/seed_benchmark_events.json").read_text())}
@@ -192,7 +212,13 @@ def main() -> int:
     readers = {"baseline": baseline_reader(gemini), "single": single_reader(gemini), "verified": verified_reader(analyzer)}
     chosen = [name for name in args.readers.split(",") if name in readers]
 
-    report: Dict[str, Any] = {"model": gemini.model, "repeats": args.repeats, "clips": len(clip_ids), "readers": {}}
+    report: Dict[str, Any] = {
+        "model": gemini.model,
+        "repeats": args.repeats,
+        "clips": len(clip_ids),
+        "label_source": LABEL_SOURCES[label_source],
+        "readers": {},
+    }
     per_clip: Dict[str, Dict[str, List[str]]] = {cid: {} for cid in clip_ids}
     for name in chosen:
         usage_before = dict(gemini.usage)
@@ -233,11 +259,13 @@ def main() -> int:
 
 def markdown(report: Dict[str, Any]) -> str:
     rows = [
-        ("Outcome accuracy", "outcome_accuracy"),
+        ("Outcome agreement with labels", "outcome_accuracy"),
         ("Behavior tag F1", "tag_f1"),
         ("Same outcome on every repeat", "stable_clips"),
         ("Wrong reads that were flagged", "wrong_reads_flagged"),
         ("Flagged reads that were wrong", "flag_precision"),
+        ("Unclear clips that were flagged", "unclear_reads_flagged"),
+        ("Outcome contradicts own observations", "self_contradictions"),
         ("Gemini calls per clip", "calls_per_clip"),
         ("Mean latency (ms)", "mean_latency_ms"),
         ("Cost per clip (USD)", "usd_per_clip"),
@@ -245,7 +273,8 @@ def markdown(report: Dict[str, Any]) -> str:
     names = list(report["readers"])
     lines = [
         f"Model {report['model']}, {report['clips']} clips, {report['repeats']} repeats per reader. "
-        f"Accuracy counts only clips whose outcome a person could tell ({len(report['unclear_clips'])} unclear).",
+        f"Labels: {report['label_source']}. Agreement counts only clips whose outcome the review could tell "
+        f"({len(report['unclear_clips'])} of {report['clips']} could not be told from the clip).",
         "",
         "| Metric | " + " | ".join(names) + " |",
         "|---|" + "---|" * len(names),
