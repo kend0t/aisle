@@ -57,6 +57,10 @@ class ClipAnalysis(BaseModel):
     behavior_tags: List[BehaviorTag] = Field(
         description="Behaviors clearly visible in the clip; empty when none apply"
     )
+    picked_up_item: bool = Field(description="True if the shopper lifted any item off the shelf")
+    left_with_item: bool = Field(
+        description="True if, at the end of the clip, the shopper holds an item or it is in their basket or cart"
+    )
     interaction_type: InteractionType = Field(
         description=(
             "passed_by: walked through without stopping. browsed: stopped and looked, no contact. "
@@ -123,6 +127,26 @@ class InteractionEvent(BaseModel):
     behavior_tags: List[BehaviorTag] = Field(
         default_factory=list,
         description="Observed shopper behaviors from the fixed BehaviorTag vocabulary",
+    )
+    picked_up_item: Optional[bool] = Field(
+        default=None, description="Whether the shopper lifted an item off the shelf"
+    )
+    left_with_item: Optional[bool] = Field(
+        default=None, description="Whether the shopper ends the clip holding an item"
+    )
+
+    # Verification: several independent reads of the clip, combined by majority
+    reading_count: Optional[int] = Field(
+        default=None, description="Number of Gemini reads combined into this record"
+    )
+    outcome_agreement: Optional[float] = Field(
+        default=None, ge=0.0, le=1.0, description="Share of reads that agree with the stored outcome"
+    )
+    needs_review: bool = Field(
+        default=False, description="True when the reads disagree or contradict themselves"
+    )
+    review_reasons: List[str] = Field(
+        default_factory=list, description="Why a person should check this clip"
     )
 
     # Optional cloud provenance fields
