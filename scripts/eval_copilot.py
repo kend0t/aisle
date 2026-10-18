@@ -33,18 +33,26 @@ from backend_service.services.gemini_client import GeminiClient
 QUESTIONS = Path("eval/copilot_questions.json")
 RESULTS_DIR = Path("eval/results")
 NUMBER = re.compile(r"\d+(?:\.\d+)?")
+WORDS = {w: i for i, w in enumerate(
+    "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen "
+    "sixteen seventeen eighteen nineteen twenty".split()
+)}
 
 
 def number_present(expected: float, answer: str) -> bool:
-    """True when the answer states the number, allowing whole-percent rounding (35.7 -> 36)."""
+    """True when the answer states the number, in digits or words, allowing whole-percent rounding (35.7 -> 36)."""
     found = {float(n) for n in NUMBER.findall(answer.replace(",", ""))}
+    found |= {float(WORDS[w]) for w in re.findall(r"[a-z]+", answer.lower()) if w in WORDS}
     return any(abs(f - expected) < 0.05 or (expected != int(expected) and f == round(expected)) for f in found)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--repeats", type=int, default=2)
+    parser.add_argument("--rescore", action="store_true", help="Score the saved answers again; no Gemini calls")
     args = parser.parse_args()
+    if args.rescore:
+        return rescore()
 
     settings = get_settings()
     gemini = GeminiClient(settings)
@@ -96,6 +104,24 @@ def main() -> int:
     table = markdown(report)
     (RESULTS_DIR / "copilot.md").write_text(table)
     print(table)
+    return 0
+
+
+def rescore() -> int:
+    report = json.loads((RESULTS_DIR / "copilot.json").read_text())
+    known_ids = {e.event_id for e in build_repository(get_settings()).list_events(limit=500)}
+    for design in report["designs"].values():
+        for a in design["answers"]:
+            a["passed"] = (
+                "error:" not in a["answer"]
+                and all(number_present(float(x), a["answer"]) for x in a["expected"] if x is not None)
+                and all(cid in known_ids for cid in EVENT_ID_PATTERN.findall(a["answer"]))
+            )
+        passed = sum(a["passed"] for a in design["answers"])
+        design.update(passed=f"{passed} of {len(design['answers'])}", pass_rate=round(passed / len(design["answers"]), 3))
+    (RESULTS_DIR / "copilot.json").write_text(json.dumps(report, indent=2) + "\n")
+    (RESULTS_DIR / "copilot.md").write_text(markdown(report))
+    print(markdown(report))
     return 0
 
 
