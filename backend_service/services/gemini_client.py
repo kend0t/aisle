@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Any, List, Type, TypeVar
+from typing import Any, Callable, Dict, List, Tuple, Type, TypeVar
 
 from pydantic import BaseModel
 
@@ -10,6 +10,9 @@ from backend_service.errors import GeminiError
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
+
+# Rounds of tool calls before Gemini must answer.
+MAX_TOOL_ROUNDS = 4
 
 
 class GeminiClient:
@@ -75,3 +78,64 @@ class GeminiClient:
             return schema.model_validate_json(response.text or "")
         except Exception as e:
             raise GeminiError("call", e) from e
+
+    def run_tools(
+        self,
+        *,
+        system: str,
+        contents: List[Any],
+        tools: Dict[str, Callable[..., Dict[str, Any]]],
+        temperature: float,
+    ) -> Tuple[str, List[str]]:
+        """Lets Gemini call `tools` until it answers. Returns the final text and a trace
+        of the calls made, such as "count_outcomes(zone_id='left_bay_cereal')"."""
+        if self._client is None:
+            raise GeminiError("call (not configured)")
+
+        from google.genai import types
+
+        api = "VERTEX_AI" if self.mode == "vertex" else "GEMINI_API"
+        declarations = [
+            types.FunctionDeclaration.from_callable_with_api_option(callable=fn, api_option=api)
+            for fn in tools.values()
+        ]
+        config = types.GenerateContentConfig(
+            system_instruction=system,
+            temperature=temperature,
+            tools=[types.Tool(function_declarations=declarations)],
+            automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+        )
+        history: List[Any] = list(contents)
+        trace: List[str] = []
+
+        try:
+            for round_number in range(MAX_TOOL_ROUNDS + 1):
+                if round_number == MAX_TOOL_ROUNDS:
+                    # Out of rounds: answer from what the tools returned so far.
+                    config = config.model_copy(update={"tool_config": types.ToolConfig(
+                        function_calling_config=types.FunctionCallingConfig(mode="NONE")
+                    )})
+                response = self._client.models.generate_content(
+                    model=self.model, contents=history, config=config
+                )
+                calls = response.function_calls or []
+                if not calls:
+                    return response.text or "", trace
+
+                history.append(response.candidates[0].content)
+                results = []
+                for call in calls:
+                    args = dict(call.args or {})
+                    trace.append(f"{call.name}({', '.join(f'{k}={v!r}' for k, v in args.items())})")
+                    fn = tools.get(call.name or "")
+                    try:
+                        output = fn(**args) if fn else {"error": f"Unknown tool {call.name}"}
+                    except Exception as e:  # A bad argument is reported back, not raised.
+                        output = {"error": str(e)}
+                    results.append(types.Part.from_function_response(name=call.name or "", response=output))
+                history.append(types.Content(role="user", parts=results))
+        except GeminiError:
+            raise
+        except Exception as e:
+            raise GeminiError("call", e) from e
+        return "", trace

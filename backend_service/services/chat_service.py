@@ -1,10 +1,11 @@
 import logging
 import re
-from typing import List
+from typing import List, Tuple
 
 from backend_service.db.firestore_client import EventRepository, summarize
 from backend_service.models.chat import ChatRequest, ChatResponse, CopilotReply, QuickPrompt
 from backend_service.models.interaction_event import InteractionEvent
+from backend_service.services.copilot_tools import CopilotTools
 from backend_service.services.gemini_client import GeminiClient
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,23 @@ Instructions for Answers:
 - **Ground in Evidence**: Quote concrete numbers (e.g., "54.5% conversion across 11 interactions"), dwell times (e.g., "7.5 seconds average"), and specific `event_id`s (e.g., `evt_019fd036bf`).
 - **Highlight Behavioral Nuances**: Reference specific physical interactions detected by the vision model (e.g. reading nutrition panels, crouching for bottom-shelf items, holding two items to compare, pausing with hesitation).
 - **Fields**: `response` is the markdown answer, `suggested_followups` holds up to 3 short questions, and `referenced_events` lists every evt_ ID the answer cites.
+"""
+
+TOOLS_SYSTEM_PROMPT = """You are AIsle Copilot. You answer a store manager's questions about shoppers at one shelf,
+recorded by an overhead camera and read by Gemini. Zones: left_bay_cereal (cereal bay) and right_bay_snacks (snack bay).
+Outcomes: taken, returned (say "put back"), none (say "no pick-up").
+Behavior tags: phone_check, compared_alternatives, low_shelf_reach, label_inspection, carried_basket, hesitated.
+
+Rules:
+- Every number in your answer must come from a tool result. Never add, divide or estimate numbers yourself;
+  call a tool with the right filters instead. Percentages are of shoppers who picked an item up.
+- Use list_clips or get_clip to find clips to cite, and cite them by evt_ ID.
+- Answer in about 80 words or fewer. Use a markdown table only when comparing.
+- Say "taken rate" and "put-back rate". Write behaviors in plain words ("checked a phone"), never as tag names.
+- Small samples: when a number rests on fewer than 5 clips, say so.
+
+When you are done calling tools, reply with only a JSON object, no code fence:
+{"response": "<markdown answer>", "suggested_followups": ["<up to 3 short questions>"], "referenced_events": ["<evt_ IDs cited>"]}
 """
 
 CURATED_QUICK_PROMPTS: List[QuickPrompt] = [
@@ -84,6 +102,7 @@ class StoreChatService:
     def __init__(self, repo: EventRepository, gemini: GeminiClient) -> None:
         self.repo = repo
         self.gemini = gemini
+        self.tools = CopilotTools(repo)
 
     def build_grounding_context(self, events: List[InteractionEvent]) -> str:
         """Store KPIs and per-clip summaries as a compact markdown context."""
@@ -143,33 +162,60 @@ class StoreChatService:
         return "\n".join(lines)
 
     def chat(self, request: ChatRequest) -> ChatResponse:
-        """Answers from the stored events. Raises GeminiError when Gemini fails.
+        """Answers through counting tools. Raises GeminiError when Gemini fails.
 
         Citations are limited to stored events, so every replay link in the UI works.
         """
-        events = self.repo.list_events(limit=500)
-
+        tool_calls: List[str] = []
         if self.gemini.available:
-            history = "\n".join(
-                f"{'User' if m.role == 'user' else 'Copilot'}: {m.content}" for m in request.history[-6:]
-            )
-            prompt = (
-                f"{self.build_grounding_context(events)}\n\n"
-                + (f"=== CONVERSATION HISTORY ===\n{history}\n\n" if history else "")
-                + f"=== CURRENT USER QUESTION ===\n{request.message}"
-            )
-            reply = self.gemini.generate(
-                system=COPILOT_SYSTEM_PROMPT, contents=[prompt], schema=CopilotReply, temperature=0.3
-            )
+            reply, tool_calls = self.answer_with_tools(request)
         else:
             reply = self._generate_simulated_response(request.message)
 
-        known_ids = {e.event_id for e in events}
+        known_ids = {e.event_id for e in self.repo.list_events(limit=500)}
         cited = dict.fromkeys(reply.referenced_events + EVENT_ID_PATTERN.findall(reply.response))
         return ChatResponse(
             response=reply.response,
             suggested_followups=reply.suggested_followups[:3],
             referenced_events=[event_id for event_id in cited if event_id in known_ids],
+            tool_calls=tool_calls,
+        )
+
+    def answer_with_tools(self, request: ChatRequest) -> Tuple[CopilotReply, List[str]]:
+        """Gemini queries the stored clips through CopilotTools, then answers."""
+        text, trace = self.gemini.run_tools(
+            system=TOOLS_SYSTEM_PROMPT,
+            contents=[self._conversation(request)],
+            tools=self.tools.as_functions(),
+            temperature=0.2,
+        )
+        try:
+            return CopilotReply.model_validate_json(_strip_fence(text)), trace
+        except ValueError:
+            # The answer came back as prose; shape it into the reply schema with one short call.
+            reply = self.gemini.generate(
+                system="Return this Copilot answer in the given JSON shape. Keep its wording and numbers.",
+                contents=[text],
+                schema=CopilotReply,
+                temperature=0.0,
+            )
+            return reply, trace
+
+    def answer_with_context(self, request: ChatRequest) -> CopilotReply:
+        """The earlier design, kept as the evaluation baseline: every event in the prompt."""
+        events = self.repo.list_events(limit=500)
+        prompt = f"{self.build_grounding_context(events)}\n\n{self._conversation(request)}"
+        return self.gemini.generate(
+            system=COPILOT_SYSTEM_PROMPT, contents=[prompt], schema=CopilotReply, temperature=0.3
+        )
+
+    @staticmethod
+    def _conversation(request: ChatRequest) -> str:
+        history = "\n".join(
+            f"{'User' if m.role == 'user' else 'Copilot'}: {m.content}" for m in request.history[-6:]
+        )
+        return (f"=== CONVERSATION HISTORY ===\n{history}\n\n" if history else "") + (
+            f"=== CURRENT USER QUESTION ===\n{request.message}"
         )
 
     def _generate_simulated_response(self, user_msg: str) -> CopilotReply:
@@ -288,3 +334,12 @@ class StoreChatService:
             ],
             referenced_events=[],
         )
+
+
+def _strip_fence(text: str) -> str:
+    """Removes a ```json fence if Gemini added one despite the instruction."""
+    text = text.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1] if "\n" in text else ""
+        text = text.rsplit("```", 1)[0]
+    return text.strip()

@@ -27,6 +27,10 @@ class ChatResponse(BaseModel):
         default_factory=list,
         description="Event IDs explicitly cited or referenced in the response",
     )
+    tool_calls: List[str] = Field(
+        default_factory=list,
+        description="Counting tools Copilot called to get its numbers, in call order",
+    )
     timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
