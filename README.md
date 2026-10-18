@@ -11,8 +11,7 @@
 
 ## 🌐 Live Prototype Demo
 
-👉 **Live Executive Dashboard:** [https://aisle-dashboard-hiiymfyb2a-as.a.run.app](https://aisle-dashboard-hiiymfyb2a-as.a.run.app)  
-👉 **Live Backend API (FastAPI):** [https://aisle-backend-317208154131.asia-southeast1.run.app/health](https://aisle-backend-317208154131.asia-southeast1.run.app/health)
+👉 **Live Executive Dashboard:** [https://aisle-dashboard-hiiymfyb2a-as.a.run.app](https://aisle-dashboard-hiiymfyb2a-as.a.run.app)
 
 ---
 
