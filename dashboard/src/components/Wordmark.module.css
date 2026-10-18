@@ -1,0 +1,14 @@
+.wordmark {
+  font-weight: 850;
+  font-size: var(--text-l);
+  letter-spacing: -0.01em;
+}
+
+/* Sized to the I of Sofia Sans: cap height 0.655em, stem 0.143em, side bearings 0.066em. */
+.aisle {
+  display: inline-block;
+  width: 0.15em;
+  height: 0.655em;
+  margin: 0 0.066em;
+  background: var(--tag);
+}
